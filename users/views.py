@@ -1,17 +1,11 @@
-from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
-from .utils import is_patient, is_doctor
+from django.http import HttpResponseForbidden
+from django.shortcuts import render
 
 
 @login_required
 def patient_dashboard(request):
-    if not is_patient(request.user):
-        return HttpResponse("Access Denied: Patients only", status=403)
-    return HttpResponse("Welcome Patient Dashboard")
+    if request.user.role != "patient":
+        return HttpResponseForbidden("You are not allowed to access this page")
 
-
-@login_required
-def doctor_dashboard(request):
-    if not is_doctor(request.user):
-        return HttpResponse("Access Denied: Doctors only", status=403)
-    return HttpResponse("Welcome Doctor Dashboard")
+    return render(request, "users/patient_dashboard.html")
