@@ -1,19 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Patient Dashboard | CuraMind AI</title>
+    <title>Patient Dashboard</title>
 </head>
 <body>
-    <h1>Welcome, {{ request.user.username }}</h1>
+    <h1>Welcome {{ request.user.username }}</h1>
 
-    <h3>Patient Dashboard</h3>
+    <h2>Your Appointments</h2>
 
-    <p>
-        Upload medical images, view AI results, and manage your appointments.
-    </p>
+    <a href="{% url 'create_appointment' %}">Create Appointment</a>
 
-    <hr>
+    <ul>
+        {% for appointment in appointments %}
+            <li>
+                Doctor: {{ appointment.doctor.username }} |
+                Date: {{ appointment.date }} |
+                Time: {{ appointment.time }} |
+                Status: {{ appointment.status }}
+            </li>
+        {% empty %}
+            <li>No appointments yet</li>
+        {% endfor %}
+    </ul>
 
+    <br>
     <a href="{% url 'logout' %}">Logout</a>
 </body>
 </html>
