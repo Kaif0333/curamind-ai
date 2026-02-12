@@ -1,43 +1,45 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Patient Dashboard</title>
-</head>
-<body>
+{% extends "base.html" %}
 
-<h2>Patient Dashboard</h2>
+{% block content %}
+<h2 class="mb-4">Patient Dashboard</h2>
 
-<h3>Book Appointment</h3>
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        Book Appointment
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
 
-<form method="post">
-    {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label">Doctor</label>
+                <select class="form-select" name="doctor" required>
+                    {% for doctor in doctors %}
+                        <option value="{{ doctor.id }}">
+                            Dr. {{ doctor.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
 
-    <label>Doctor:</label>
-    <select name="doctor" required>
-        {% for doctor in doctors %}
-            <option value="{{ doctor.id }}">
-                Dr. {{ doctor.username }}
-            </option>
-        {% endfor %}
-    </select>
-    <br><br>
+            <div class="mb-3">
+                <label class="form-label">Date</label>
+                <input type="date" class="form-control" name="date" required>
+            </div>
 
-    <label>Date:</label>
-    <input type="date" name="date" required>
-    <br><br>
+            <div class="mb-3">
+                <label class="form-label">Time</label>
+                <input type="time" class="form-control" name="time" required>
+            </div>
 
-    <label>Time:</label>
-    <input type="time" name="time" required>
-    <br><br>
+            <button class="btn btn-success">Book Appointment</button>
+        </form>
+    </div>
+</div>
 
-    <button type="submit">Book Appointment</button>
-</form>
+<h4>My Appointments</h4>
 
-<hr>
-
-<h3>My Appointments</h3>
-
-<table border="1" cellpadding="10">
+<table class="table table-bordered">
     <tr>
         <th>Doctor</th>
         <th>Date</th>
@@ -53,11 +55,7 @@
         <td>{{ appointment.status }}</td>
     </tr>
     {% empty %}
-    <tr>
-        <td colspan="4">No appointments</td>
-    </tr>
+    <tr><td colspan="4">No appointments</td></tr>
     {% endfor %}
 </table>
-
-</body>
-</html>
+{% endblock %}
