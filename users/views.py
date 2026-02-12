@@ -1,41 +1,52 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden
-from .models import User, Appointment
+from django.http import HttpResponse
+from .models import Appointment
 
 
 @login_required
-def patient_dashboard(request):
-    if request.user.user_type != "patient":
-        return HttpResponseForbidden("You are not allowed")
+def role_redirect(request):
+    user = request.user
 
-    appointments = Appointment.objects.filter(patient=request.user)
-    return render(request, "users/patient_dashboard.html", {
+    if user.user_type == "doctor":
+        return redirect("/users/doctor/")
+    elif user.user_type == "patient":
+        return redirect("/users/patient/")
+    else:
+        return HttpResponse("Invalid user role")
+
+
+@login_required
+def doctor_dashboard(request):
+    if request.user.user_type != "doctor":
+        return HttpResponse("Forbidden", status=403)
+
+    appointments = Appointment.objects.filter(doctor=request.user)
+
+    return render(request, "users/doctor_dashboard.html", {
         "appointments": appointments
     })
 
 
 @login_required
-def create_appointment(request):
-    if request.user.user_type != "patient":
-        return HttpResponseForbidden("You are not allowed")
+def approve_appointment(request, appointment_id):
+    if request.user.user_type != "doctor":
+        return HttpResponse("Forbidden", status=403)
 
-    doctors = User.objects.filter(user_type="doctor")
+    appointment = Appointment.objects.get(id=appointment_id)
+    appointment.status = "approved"
+    appointment.save()
 
-    if request.method == "POST":
-        doctor_id = request.POST.get("doctor")
-        date = request.POST.get("date")
-        time = request.POST.get("time")
+    return redirect("/users/doctor/")
 
-        Appointment.objects.create(
-            patient=request.user,
-            doctor_id=doctor_id,
-            date=date,
-            time=time
-        )
 
-        return redirect("patient_dashboard")
+@login_required
+def reject_appointment(request, appointment_id):
+    if request.user.user_type != "doctor":
+        return HttpResponse("Forbidden", status=403)
 
-    return render(request, "users/create_appointment.html", {
-        "doctors": doctors
-    })
+    appointment = Appointment.objects.get(id=appointment_id)
+    appointment.status = "rejected"
+    appointment.save()
+
+    return redirect("/users/doctor/")

@@ -1,7 +1,9 @@
 from django.urls import path
-from .views import patient_dashboard, create_appointment
+from . import views
 
 urlpatterns = [
-    path("patient/", patient_dashboard, name="patient_dashboard"),
-    path("patient/appointment/", create_appointment, name="create_appointment"),
+    path("redirect/", views.role_redirect),
+    path("doctor/", views.doctor_dashboard),
+    path("approve/<int:appointment_id>/", views.approve_appointment),
+    path("reject/<int:appointment_id>/", views.reject_appointment),
 ]
