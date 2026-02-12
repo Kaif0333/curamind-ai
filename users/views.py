@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from .models import Appointment
+from .models import Appointment, User
 
 
 @login_required
@@ -14,6 +14,33 @@ def role_redirect(request):
         return redirect("/users/patient/")
     else:
         return HttpResponse("Invalid user role")
+
+
+@login_required
+def patient_dashboard(request):
+    if request.user.user_type != "patient":
+        return HttpResponse("Forbidden", status=403)
+
+    appointments = Appointment.objects.filter(patient=request.user)
+    doctors = User.objects.filter(user_type="doctor")
+
+    if request.method == "POST":
+        doctor_id = request.POST.get("doctor")
+        date = request.POST.get("date")
+        time = request.POST.get("time")
+
+        Appointment.objects.create(
+            patient=request.user,
+            doctor_id=doctor_id,
+            date=date,
+            time=time
+        )
+        return redirect("/users/patient/")
+
+    return render(request, "users/patient_dashboard.html", {
+        "appointments": appointments,
+        "doctors": doctors
+    })
 
 
 @login_required

@@ -4,26 +4,60 @@
     <title>Patient Dashboard</title>
 </head>
 <body>
-    <h1>Welcome {{ request.user.username }}</h1>
 
-    <h2>Your Appointments</h2>
+<h2>Patient Dashboard</h2>
 
-    <a href="{% url 'create_appointment' %}">Create Appointment</a>
+<h3>Book Appointment</h3>
 
-    <ul>
-        {% for appointment in appointments %}
-            <li>
-                Doctor: {{ appointment.doctor.username }} |
-                Date: {{ appointment.date }} |
-                Time: {{ appointment.time }} |
-                Status: {{ appointment.status }}
-            </li>
-        {% empty %}
-            <li>No appointments yet</li>
+<form method="post">
+    {% csrf_token %}
+
+    <label>Doctor:</label>
+    <select name="doctor" required>
+        {% for doctor in doctors %}
+            <option value="{{ doctor.id }}">
+                Dr. {{ doctor.username }}
+            </option>
         {% endfor %}
-    </ul>
+    </select>
+    <br><br>
 
-    <br>
-    <a href="{% url 'logout' %}">Logout</a>
+    <label>Date:</label>
+    <input type="date" name="date" required>
+    <br><br>
+
+    <label>Time:</label>
+    <input type="time" name="time" required>
+    <br><br>
+
+    <button type="submit">Book Appointment</button>
+</form>
+
+<hr>
+
+<h3>My Appointments</h3>
+
+<table border="1" cellpadding="10">
+    <tr>
+        <th>Doctor</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Status</th>
+    </tr>
+
+    {% for appointment in appointments %}
+    <tr>
+        <td>Dr. {{ appointment.doctor.username }}</td>
+        <td>{{ appointment.date }}</td>
+        <td>{{ appointment.time }}</td>
+        <td>{{ appointment.status }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+        <td colspan="4">No appointments</td>
+    </tr>
+    {% endfor %}
+</table>
+
 </body>
 </html>
