@@ -56,3 +56,15 @@ python manage.py createsuperuser
 ```bash
 python manage.py runserver
 ```
+User Roles
+
+Patient: Book appointments & track status
+
+Doctor: Approve or reject appointments
+
+Admin: Full system control
+
+Author
+
+S Mohammed Kaif Basha
+Python Developer Intern – Zaalima Development
