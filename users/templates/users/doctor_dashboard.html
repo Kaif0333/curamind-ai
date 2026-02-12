@@ -3,44 +3,47 @@
 {% block content %}
 <h2 class="mb-4">Doctor Dashboard</h2>
 
-<table class="table table-bordered table-striped">
+<table class="table table-bordered table-hover">
     <thead class="table-dark">
         <tr>
             <th>Patient</th>
             <th>Date</th>
             <th>Time</th>
+            <th>Description</th>
             <th>Status</th>
             <th>Action</th>
         </tr>
     </thead>
 
     <tbody>
-        {% for appointment in appointments %}
+        {% for appt in appointments %}
         <tr>
-            <td>{{ appointment.patient.username }}</td>
-            <td>{{ appointment.date }}</td>
-            <td>{{ appointment.time }}</td>
+            <td>{{ appt.patient.username }}</td>
+            <td>{{ appt.date }}</td>
+            <td>{{ appt.time }}</td>
+            <td>{{ appt.description }}</td>
             <td>
-                <span class="badge 
-                {% if appointment.status == 'approved' %}bg-success
-                {% elif appointment.status == 'rejected' %}bg-danger
-                {% else %}bg-warning text-dark{% endif %}">
-                    {{ appointment.status }}
-                </span>
+                {% if appt.status == "pending" %}
+                    <span class="badge bg-warning">Pending</span>
+                {% elif appt.status == "approved" %}
+                    <span class="badge bg-success">Approved</span>
+                {% else %}
+                    <span class="badge bg-danger">Rejected</span>
+                {% endif %}
             </td>
             <td>
-                {% if appointment.status == "pending" %}
-                    <a class="btn btn-success btn-sm"
-                       href="/users/approve/{{ appointment.id }}/">Approve</a>
-                    <a class="btn btn-danger btn-sm"
-                       href="/users/reject/{{ appointment.id }}/">Reject</a>
+                {% if appt.status == "pending" %}
+                    <a href="{% url 'approve_appointment' appt.id %}" class="btn btn-success btn-sm">Approve</a>
+                    <a href="{% url 'reject_appointment' appt.id %}" class="btn btn-danger btn-sm">Reject</a>
                 {% else %}
                     —
                 {% endif %}
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="5">No appointments</td></tr>
+        <tr>
+            <td colspan="6" class="text-center">No appointments</td>
+        </tr>
         {% endfor %}
     </tbody>
 </table>

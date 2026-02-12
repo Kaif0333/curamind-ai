@@ -1,21 +1,15 @@
 from django.urls import path
 from . import views
 
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
-
 urlpatterns = [
-    path("login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path('redirect/', views.role_redirect, name='role_redirect'),
 
-    path("redirect/", views.role_redirect),
-    path("patient/", views.patient_dashboard),
-    path("doctor/", views.doctor_dashboard),
+    # patient
+    path('patient/', views.patient_dashboard, name='patient_dashboard'),
+    path('book/', views.book_appointment, name='book_appointment'),
 
-    path("approve/<int:appointment_id>/", views.approve_appointment),
-    path("reject/<int:appointment_id>/", views.reject_appointment),
-
-    path("api/appointments/", views.appointments_api),
+    # doctor
+    path('doctor/', views.doctor_dashboard, name='doctor_dashboard'),
+    path('approve/<int:appointment_id>/', views.approve_appointment, name='approve_appointment'),
+    path('reject/<int:appointment_id>/', views.reject_appointment, name='reject_appointment'),
 ]

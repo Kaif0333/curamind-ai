@@ -2,60 +2,43 @@
 
 {% block content %}
 <h2 class="mb-4">Patient Dashboard</h2>
+<a href="{% url 'book_appointment' %}" class="btn btn-success mb-3">
+    Book New Appointment
+</a>
 
-<div class="card mb-4">
-    <div class="card-header bg-primary text-white">
-        Book Appointment
-    </div>
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
+<table class="table table-bordered table-hover">
+    <thead class="table-dark">
+        <tr>
+            <th>Doctor</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Description</th>
+            <th>Status</th>
+        </tr>
+    </thead>
 
-            <div class="mb-3">
-                <label class="form-label">Doctor</label>
-                <select class="form-select" name="doctor" required>
-                    {% for doctor in doctors %}
-                        <option value="{{ doctor.id }}">
-                            Dr. {{ doctor.username }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Date</label>
-                <input type="date" class="form-control" name="date" required>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Time</label>
-                <input type="time" class="form-control" name="time" required>
-            </div>
-
-            <button class="btn btn-success">Book Appointment</button>
-        </form>
-    </div>
-</div>
-
-<h4>My Appointments</h4>
-
-<table class="table table-bordered">
-    <tr>
-        <th>Doctor</th>
-        <th>Date</th>
-        <th>Time</th>
-        <th>Status</th>
-    </tr>
-
-    {% for appointment in appointments %}
-    <tr>
-        <td>Dr. {{ appointment.doctor.username }}</td>
-        <td>{{ appointment.date }}</td>
-        <td>{{ appointment.time }}</td>
-        <td>{{ appointment.status }}</td>
-    </tr>
-    {% empty %}
-    <tr><td colspan="4">No appointments</td></tr>
-    {% endfor %}
+    <tbody>
+        {% for appt in appointments %}
+        <tr>
+            <td>{{ appt.doctor.username }}</td>
+            <td>{{ appt.date }}</td>
+            <td>{{ appt.time }}</td>
+            <td>{{ appt.description }}</td>
+            <td>
+                {% if appt.status == "pending" %}
+                    <span class="badge bg-warning">Pending</span>
+                {% elif appt.status == "approved" %}
+                    <span class="badge bg-success">Approved</span>
+                {% else %}
+                    <span class="badge bg-danger">Rejected</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" class="text-center">No appointments yet</td>
+        </tr>
+        {% endfor %}
+    </tbody>
 </table>
 {% endblock %}

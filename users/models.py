@@ -4,12 +4,12 @@ from django.db import models
 
 class User(AbstractUser):
     USER_TYPE_CHOICES = (
-        ("doctor", "Doctor"),
-        ("patient", "Patient"),
+        ('doctor', 'Doctor'),
+        ('patient', 'Patient'),
     )
 
     user_type = models.CharField(
-        max_length=20,
+        max_length=10,
         choices=USER_TYPE_CHOICES
     )
 
@@ -18,21 +18,30 @@ class User(AbstractUser):
 
 
 class Appointment(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+
     patient = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="patient_appointments"
+        related_name='patient_appointments'
     )
     doctor = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="doctor_appointments"
+        related_name='doctor_appointments'
     )
     date = models.DateField()
     time = models.TimeField()
+    description = models.TextField(blank=True)
+
     status = models.CharField(
-        max_length=20,
-        default="pending"
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='pending'
     )
 
     def __str__(self):
