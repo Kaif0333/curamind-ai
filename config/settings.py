@@ -1,24 +1,25 @@
 from pathlib import Path
+from datetime import timedelta
 
-# =========================
-# BASE DIRECTORY
-# =========================
+# ==============================
+# BASE DIR
+# ==============================
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# =========================
+# ==============================
 # SECURITY
-# =========================
-SECRET_KEY = 'django-insecure-change-this-later'
+# ==============================
+SECRET_KEY = 'django-insecure-change-this-in-production'
 
 DEBUG = True
 
 ALLOWED_HOSTS = []
 
 
-# =========================
+# ==============================
 # APPLICATIONS
-# =========================
+# ==============================
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -26,6 +27,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # third party
     'rest_framework',
 
     # local apps
@@ -33,9 +36,9 @@ INSTALLED_APPS = [
 ]
 
 
-# =========================
+# ==============================
 # MIDDLEWARE
-# =========================
+# ==============================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -47,19 +50,19 @@ MIDDLEWARE = [
 ]
 
 
-# =========================
+# ==============================
 # URL CONFIG
-# =========================
+# ==============================
 ROOT_URLCONF = 'config.urls'
 
 
-# =========================
-# TEMPLATES  (IMPORTANT)
-# =========================
+# ==============================
+# TEMPLATES
+# ==============================
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],  # 👈 REQUIRED
+        'DIRS': [BASE_DIR / "templates"],   # important
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -73,15 +76,15 @@ TEMPLATES = [
 ]
 
 
-# =========================
+# ==============================
 # WSGI
-# =========================
+# ==============================
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-# =========================
+# ==============================
 # DATABASE
-# =========================
+# ==============================
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -90,9 +93,9 @@ DATABASES = {
 }
 
 
-# =========================
+# ==============================
 # PASSWORD VALIDATION
-# =========================
+# ==============================
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -109,38 +112,62 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# =========================
-# INTERNATIONALIZATION
-# =========================
+# ==============================
+# CUSTOM USER MODEL  (VERY IMPORTANT)
+# ==============================
+AUTH_USER_MODEL = 'users.User'
+
+
+# ==============================
+# LOGIN / LOGOUT
+# ==============================
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/users/redirect/'
+LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+
+# ==============================
+# LANGUAGE & TIME
+# ==============================
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 
 USE_I18N = True
-
 USE_TZ = True
 
 
-# =========================
+# ==============================
 # STATIC FILES
-# =========================
+# ==============================
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
-# =========================
+# ==============================
 # DEFAULT PRIMARY KEY
-# =========================
+# ==============================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-# =========================
-# AUTH LOGIN / LOGOUT
-# =========================
-LOGIN_URL = "/accounts/login/"
-LOGOUT_REDIRECT_URL = "/accounts/login/"
+# ==============================
+# DJANGO REST FRAMEWORK
+# ==============================
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
 
-LOGIN_REDIRECT_URL = "/users/redirect/"
 
-AUTH_USER_MODEL = 'users.User'
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-DEFAULT_FROM_EMAIL = "curamind@localhost"
+# ==============================
+# JWT SETTINGS
+# ==============================
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
