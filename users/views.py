@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.http import HttpResponse, HttpResponseForbidden
 from django.core.mail import send_mail
 from django.core.exceptions import ValidationError
@@ -14,6 +15,8 @@ def _require_user_type(user, expected_type):
 
 @login_required
 def role_redirect(request):
+    if request.user.is_staff or request.user.is_superuser:
+        return redirect('/admin/')
     if request.user.user_type == 'doctor':
         return redirect('doctor_dashboard')
     elif request.user.user_type == 'patient':
@@ -28,7 +31,7 @@ def patient_dashboard(request):
     if not _require_user_type(request.user, 'patient'):
         return HttpResponseForbidden("Only patients can access this page.")
 
-    appointments = Appointment.objects.filter(patient=request.user)
+    appointments = Appointment.objects.filter(patient=request.user).order_by('-date', '-time')
     return render(request, 'users/patient_dashboard.html', {
         'appointments': appointments
     })
@@ -40,8 +43,6 @@ def book_appointment(request):
         return HttpResponseForbidden("Only patients can book appointments.")
 
     doctors = User.objects.filter(user_type='doctor')
-    booking_error = None
-
     if request.method == "POST":
         doctor_id = request.POST.get('doctor')
         date = request.POST.get('date')
@@ -62,12 +63,12 @@ def book_appointment(request):
             booking_error = "; ".join(
                 [message for messages in exc.message_dict.values() for message in messages]
             )
+            messages.error(request, booking_error)
         else:
             return redirect('patient_dashboard')
 
     return render(request, 'users/book_appointment.html', {
         'doctors': doctors,
-        'booking_error': booking_error,
     })
 
 
@@ -78,7 +79,7 @@ def doctor_dashboard(request):
     if not _require_user_type(request.user, 'doctor'):
         return HttpResponseForbidden("Only doctors can access this page.")
 
-    appointments = Appointment.objects.filter(doctor=request.user)
+    appointments = Appointment.objects.filter(doctor=request.user).order_by('-date', '-time')
     return render(request, 'users/doctor_dashboard.html', {
         'appointments': appointments
     })
@@ -95,7 +96,13 @@ def approve_appointment(request, appointment_id):
         return redirect('doctor_dashboard')
 
     appointment.status = 'approved'
-    appointment.save()
+    try:
+        appointment.save()
+    except ValidationError as exc:
+        messages.error(request, "; ".join(
+            [message for error_list in exc.message_dict.values() for message in error_list]
+        ))
+        return redirect('doctor_dashboard')
 
     send_mail(
         'Appointment Approved',
@@ -119,7 +126,13 @@ def reject_appointment(request, appointment_id):
         return redirect('doctor_dashboard')
 
     appointment.status = 'rejected'
-    appointment.save()
+    try:
+        appointment.save()
+    except ValidationError as exc:
+        messages.error(request, "; ".join(
+            [message for error_list in exc.message_dict.values() for message in error_list]
+        ))
+        return redirect('doctor_dashboard')
 
     send_mail(
         'Appointment Rejected',

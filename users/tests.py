@@ -144,6 +144,13 @@ class AuthAndRoutingTests(TestCase):
             user_type="patient",
             email="patient2@example.com",
         )
+        self.staff_user = User.objects.create_user(
+            username="staff1",
+            password="StrongPass123!",
+            user_type="patient",
+            email="staff1@example.com",
+            is_staff=True,
+        )
 
     def test_home_route_available(self):
         response = self.client.get(reverse("home"))
@@ -158,3 +165,9 @@ class AuthAndRoutingTests(TestCase):
         self.client.login(username="patient2", password="StrongPass123!")
         response = self.client.post(reverse("logout"))
         self.assertEqual(response.status_code, 302)
+
+    def test_staff_role_redirect_goes_to_admin(self):
+        self.client.login(username="staff1", password="StrongPass123!")
+        response = self.client.get(reverse("role_redirect"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/admin/")
