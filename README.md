@@ -1,18 +1,18 @@
-# CuraMind AI – Appointment Management System
+# CuraMind AI - Appointment Management System
 
 ## Project Overview
 CuraMind AI is a Django-based healthcare appointment management system with role-based access for patients and doctors.
 
 ## Features
 - Custom User model (Doctor / Patient)
-- Secure authentication & login
+- Secure authentication and login
 - Patient appointment booking
 - Doctor approval / rejection workflow
 - Appointment status tracking
-- Email notifications on approval/rejection
+- Email notifications on approval / rejection
 - Bootstrap-based UI
 - Admin panel for full control
-- Environment variable security using .env
+- Environment variable security using `.env`
 
 ## Tech Stack
 - Python
@@ -22,21 +22,23 @@ CuraMind AI is a Django-based healthcare appointment management system with role
 - Gmail SMTP
 
 ## Installation Steps
-
 1. Clone repository
 ```bash
 git clone <repo-url>
 cd curamind_ai
 ```
+
 2. Create virtual environment
 ```bash
 python -m venv venv
 venv\Scripts\activate
 ```
+
 3. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
+
 4. Setup environment variables
 Create a `.env` file:
 ```bash
@@ -45,46 +47,39 @@ EMAIL_HOST_PASSWORD=yourapppassword
 DJANGO_SECRET_KEY=replace-this-with-a-strong-secret
 DEBUG=True
 ALLOWED_HOSTS=127.0.0.1,localhost
+CSRF_TRUSTED_ORIGINS=http://127.0.0.1:8000,http://localhost:8000
 ```
+
 5. Run migrations
 ```bash
 python manage.py makemigrations
 python manage.py migrate
 ```
+
 6. Create superuser
 ```bash
 python manage.py createsuperuser
 ```
+
 7. Run server
 ```bash
 python manage.py runserver
 ```
 
 ## Running This Project (Important)
-
 This repository is a Django project, not a FastAPI `app.main` layout.
 
 Use one of these commands from the project root:
-
 ```bash
 venv\Scripts\python.exe manage.py runserver
 ```
 
-If you want ASGI with Uvicorn, install uvicorn in the same venv and run:
-
+If you want ASGI with Uvicorn, run:
 ```bash
-venv\Scripts\python.exe -m uvicorn config.asgi:application --reload
+venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
-User Roles
 
-Patient: Book appointments & track status
-
-Doctor: Approve or reject appointments
-
-Admin: Full system control
-
-Author
-
-S Mohammed Kaif Basha
-
-Python Developer Intern – Zaalima Development
+## User Roles
+- Patient: Book appointments and track status
+- Doctor: Approve or reject appointments
+- Admin: Full system control
