@@ -80,3 +80,27 @@ class AppointmentFlowTests(TestCase):
         self.client.login(username="doctor1", password="StrongPass123!")
         response = self.client.get(reverse("approve_appointment", args=[self.appointment.id]))
         self.assertEqual(response.status_code, 405)
+
+
+class AuthAndRoutingTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="patient2",
+            password="StrongPass123!",
+            user_type="patient",
+            email="patient2@example.com",
+        )
+
+    def test_home_route_available(self):
+        response = self.client.get(reverse("home"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_logout_get_not_allowed(self):
+        self.client.login(username="patient2", password="StrongPass123!")
+        response = self.client.get(reverse("logout"))
+        self.assertEqual(response.status_code, 405)
+
+    def test_logout_post_redirects(self):
+        self.client.login(username="patient2", password="StrongPass123!")
+        response = self.client.post(reverse("logout"))
+        self.assertEqual(response.status_code, 302)
