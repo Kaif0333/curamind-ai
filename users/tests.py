@@ -1,4 +1,5 @@
 from datetime import date, time
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from .models import User, Appointment
@@ -80,6 +81,31 @@ class AppointmentFlowTests(TestCase):
         self.client.login(username="doctor1", password="StrongPass123!")
         response = self.client.get(reverse("approve_appointment", args=[self.appointment.id]))
         self.assertEqual(response.status_code, 405)
+
+    def test_doctor_cannot_book_patient_appointment(self):
+        self.client.login(username="doctor1", password="StrongPass123!")
+        response = self.client.post(
+            reverse("book_appointment"),
+            {
+                "doctor": self.other_doctor.id,
+                "date": "2026-03-05",
+                "time": "12:00",
+                "description": "Invalid role action",
+            },
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_appointment_model_rejects_invalid_roles(self):
+        invalid_appointment = Appointment(
+            patient=self.doctor,
+            doctor=self.patient,
+            date=date(2026, 3, 6),
+            time=time(14, 0),
+            description="Invalid role mapping",
+            status="pending",
+        )
+        with self.assertRaises(ValidationError):
+            invalid_appointment.save()
 
 
 class AuthAndRoutingTests(TestCase):
