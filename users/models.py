@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -55,6 +56,19 @@ class Appointment(models.Model):
             errors['doctor'] = 'Selected doctor account must have doctor role.'
         if self.patient_id and self.doctor_id and self.patient_id == self.doctor_id:
             errors['doctor'] = 'Doctor and patient must be different users.'
+        if self.date and self.date < timezone.localdate():
+            errors['date'] = 'Appointment date cannot be in the past.'
+        if self.doctor_id and self.date and self.time:
+            overlapping = Appointment.objects.filter(
+                doctor_id=self.doctor_id,
+                date=self.date,
+                time=self.time,
+                status__in=['pending', 'approved'],
+            )
+            if self.pk:
+                overlapping = overlapping.exclude(pk=self.pk)
+            if overlapping.exists():
+                errors['time'] = 'This doctor already has an appointment for that slot.'
         if errors:
             raise ValidationError(errors)
 
@@ -63,4 +77,4 @@ class Appointment(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.patient} → {self.doctor} ({self.status})"
+        return f"{self.patient} -> {self.doctor} ({self.status})"

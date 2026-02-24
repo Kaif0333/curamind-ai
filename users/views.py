@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseForbidden
 from django.core.mail import send_mail
+from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.views.decorators.http import require_POST
 from .models import Appointment, User
@@ -39,6 +40,7 @@ def book_appointment(request):
         return HttpResponseForbidden("Only patients can book appointments.")
 
     doctors = User.objects.filter(user_type='doctor')
+    booking_error = None
 
     if request.method == "POST":
         doctor_id = request.POST.get('doctor')
@@ -47,19 +49,25 @@ def book_appointment(request):
         description = request.POST.get('description')
         doctor = get_object_or_404(User, id=doctor_id, user_type='doctor')
 
-        Appointment.objects.create(
-            patient=request.user,
-            doctor=doctor,
-            date=date,
-            time=time,
-            description=description,
-            status='pending'
-        )
-
-        return redirect('patient_dashboard')
+        try:
+            Appointment.objects.create(
+                patient=request.user,
+                doctor=doctor,
+                date=date,
+                time=time,
+                description=description,
+                status='pending'
+            )
+        except ValidationError as exc:
+            booking_error = "; ".join(
+                [message for messages in exc.message_dict.values() for message in messages]
+            )
+        else:
+            return redirect('patient_dashboard')
 
     return render(request, 'users/book_appointment.html', {
-        'doctors': doctors
+        'doctors': doctors,
+        'booking_error': booking_error,
     })
 
 

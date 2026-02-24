@@ -107,6 +107,34 @@ class AppointmentFlowTests(TestCase):
         with self.assertRaises(ValidationError):
             invalid_appointment.save()
 
+    def test_cannot_book_past_date(self):
+        self.client.login(username="patient1", password="StrongPass123!")
+        response = self.client.post(
+            reverse("book_appointment"),
+            {
+                "doctor": self.doctor.id,
+                "date": "2020-01-01",
+                "time": "09:00",
+                "description": "Past booking should fail",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Appointment date cannot be in the past.")
+
+    def test_cannot_double_book_doctor_slot(self):
+        self.client.login(username="patient1", password="StrongPass123!")
+        response = self.client.post(
+            reverse("book_appointment"),
+            {
+                "doctor": self.doctor.id,
+                "date": "2026-02-24",
+                "time": "10:30",
+                "description": "Conflicting slot request",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "already has an appointment for that slot")
+
 
 class AuthAndRoutingTests(TestCase):
     def setUp(self):

@@ -3,6 +3,12 @@
 {% block content %}
 <h2 class="mb-4">Book Appointment</h2>
 
+{% if booking_error %}
+<div class="alert alert-danger" role="alert">
+    {{ booking_error }}
+</div>
+{% endif %}
+
 <form method="post">
     {% csrf_token %}
 
