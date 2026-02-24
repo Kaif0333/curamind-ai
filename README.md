@@ -59,6 +59,22 @@ python manage.py createsuperuser
 ```bash
 python manage.py runserver
 ```
+
+## Running This Project (Important)
+
+This repository is a Django project, not a FastAPI `app.main` layout.
+
+Use one of these commands from the project root:
+
+```bash
+venv\Scripts\python.exe manage.py runserver
+```
+
+If you want ASGI with Uvicorn, install uvicorn in the same venv and run:
+
+```bash
+venv\Scripts\python.exe -m uvicorn config.asgi:application --reload
+```
 User Roles
 
 Patient: Book appointments & track status
