@@ -38,10 +38,13 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 4. Setup environment variables
-Create ```bash .env `` file:
+Create a `.env` file:
 ```bash
 EMAIL_HOST_USER=yourgmail@gmail.com
 EMAIL_HOST_PASSWORD=yourapppassword
+DJANGO_SECRET_KEY=replace-this-with-a-strong-secret
+DEBUG=True
+ALLOWED_HOSTS=127.0.0.1,localhost
 ```
 5. Run migrations
 ```bash
