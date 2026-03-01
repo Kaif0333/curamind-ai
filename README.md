@@ -100,6 +100,25 @@ venv\Scripts\python.exe -m uvicorn app.main:app --reload
 - Production: `config.settings_prod`
 - Default (current): `config.settings`
 
+## Deployment (Render)
+This project is now deployment-ready for Render.
+
+1. Push code to GitHub
+2. In Render, create a new `Web Service` from this repo
+3. Use:
+   - Build Command: `pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate`
+   - Start Command: `gunicorn config.wsgi:application --log-file -`
+4. Set environment variables:
+   - `DJANGO_ENV=production`
+   - `DEBUG=False`
+   - `DJANGO_SECRET_KEY=<strong-random-secret>`
+   - `ALLOWED_HOSTS=<your-render-domain>`
+   - `CSRF_TRUSTED_ORIGINS=https://<your-render-domain>`
+   - `DATABASE_URL=<managed-postgres-url>` (recommended)
+   - `EMAIL_HOST_USER` and `EMAIL_HOST_PASSWORD` (optional for email notifications)
+
+You can also deploy with `render.yaml` included in this repository.
+
 ## User Roles
 - Patient: Book appointments and track status
 - Doctor: Approve or reject appointments
