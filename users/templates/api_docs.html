@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="ui-card p-4 mb-3">
+    <span class="eyebrow">Developer Portal</span>
+    <h2 class="mb-2">Interactive API Docs</h2>
+    <p class="muted-note mb-0">Use JWT token endpoints first, then test authenticated appointment APIs directly from Swagger.</p>
+</div>
+
+<div id="swagger-ui" class="ui-card p-2"></div>
+
+<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script>
+window.onload = function () {
+  SwaggerUIBundle({
+    url: "{% url 'api_schema' %}",
+    dom_id: "#swagger-ui",
+    deepLinking: true,
+    presets: [SwaggerUIBundle.presets.apis],
+    layout: "BaseLayout",
+    docExpansion: "none"
+  });
+};
+</script>
+{% endblock %}

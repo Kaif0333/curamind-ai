@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="ui-card p-4 p-md-5 mb-4">
+    <span class="eyebrow">Digital Care Coordination</span>
+    <h1 class="display-6 mb-3">Modern Appointment Flow For Clinics</h1>
+    <p class="muted-note mb-4">
+        CuraMind AI brings scheduling, doctor actions, and patient tracking into one fast dashboard experience.
+    </p>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        {% if user.is_authenticated %}
+            <a class="btn btn-brand btn-lg" href="{% url 'role_redirect' %}">Open Dashboard</a>
+        {% else %}
+            <a class="btn btn-brand btn-lg" href="{% url 'login' %}">Login</a>
+            <a class="btn btn-success btn-lg" href="{% url 'register' %}">Register</a>
+        {% endif %}
+        <a class="btn btn-outline-dark btn-lg" href="/admin/">Admin</a>
+    </div>
+    <div class="muted-note">
+        First time here? Start with <strong>Register</strong> or <strong>Login</strong>. Routes/docs are kept for developers and admins.
+    </div>
+    {% if user.is_staff or user.is_superuser %}
+    <div class="dev-panel mt-3">
+        <strong>Developer Tools</strong>
+        <div class="mt-2 d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'docs' %}">API Docs</a>
+            <a class="btn btn-outline-info btn-sm" href="{% url 'routes' %}">App Routes</a>
+        </div>
+    </div>
+    {% endif %}
+</section>
+
+<section class="row g-3">
+    <div class="col-md-4">
+        <div class="ui-card p-4 h-100 lift">
+            <h5>Patient Journey</h5>
+            <p class="muted-note mb-0">Register, pick doctor, choose date/time, and track status live.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="ui-card p-4 h-100 lift">
+            <h5>Doctor Workflow</h5>
+            <p class="muted-note mb-0">Review requests, approve or reject, and keep schedule conflict-free.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="ui-card p-4 h-100 lift">
+            <h5>API + Admin</h5>
+            <p class="muted-note mb-0">JWT-secured endpoints, OpenAPI docs, and full Django admin controls.</p>
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  if (localStorage.getItem("curamind_seen_home_hint")) return;
+  const msg = "Welcome to CuraMind AI. Start with Register/Login, then appointments will appear in your dashboard.";
+  const banner = document.createElement("div");
+  banner.className = "alert alert-info ui-card border-0 mt-3";
+  banner.textContent = msg;
+  const target = document.querySelector(".app-shell");
+  if (target) target.prepend(banner);
+  localStorage.setItem("curamind_seen_home_hint", "1");
+});
+</script>
+{% endblock %}

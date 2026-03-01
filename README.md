@@ -13,6 +13,9 @@ CuraMind AI is a Django-based healthcare appointment management system with role
 - Bootstrap-based UI
 - Admin panel for full control
 - Environment variable security using `.env`
+- Patient self-registration
+- Interactive API docs
+- Demo data seeding command
 
 ## Tech Stack
 - Python
@@ -66,6 +69,11 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+8. Seed demo users and appointments (optional)
+```bash
+python manage.py seed_demo
+```
+
 ## Running This Project (Important)
 This repository is a Django project, not a FastAPI `app.main` layout.
 
@@ -78,6 +86,19 @@ If you want ASGI with Uvicorn, run:
 ```bash
 venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
+
+## Useful URLs
+- `/` - Home page
+- `/accounts/register/` - Patient registration
+- `/accounts/login/` - Login
+- `/admin/` - Admin panel
+- `/docs/` - Interactive API docs (Swagger UI)
+- `/routes/` - Quick route index
+
+## Settings Modules
+- Development: `config.settings_dev`
+- Production: `config.settings_prod`
+- Default (current): `config.settings`
 
 ## User Roles
 - Patient: Book appointments and track status

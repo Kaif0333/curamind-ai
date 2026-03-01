@@ -20,24 +20,27 @@ def _get_bool(name, default=False):
 
 
 DEBUG = _get_bool('DEBUG', True)
+DJANGO_ENV = os.getenv('DJANGO_ENV', 'development').strip().lower()
+IS_PRODUCTION = DJANGO_ENV == 'production'
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-this-in-production')
-if not DEBUG and SECRET_KEY == 'django-insecure-change-this-in-production':
+STRICT_SETTINGS = _get_bool('STRICT_SETTINGS', False)
+if (STRICT_SETTINGS or IS_PRODUCTION) and not DEBUG and SECRET_KEY == 'django-insecure-change-this-in-production':
     raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set when DEBUG=False.")
 
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', '').split(',') if host.strip()]
-if DEBUG and not ALLOWED_HOSTS:
+if not ALLOWED_HOSTS and not IS_PRODUCTION:
     ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip() for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if origin.strip()
 ]
 
-SESSION_COOKIE_SECURE = _get_bool('SESSION_COOKIE_SECURE', not DEBUG)
-CSRF_COOKIE_SECURE = _get_bool('CSRF_COOKIE_SECURE', not DEBUG)
-SECURE_SSL_REDIRECT = _get_bool('SECURE_SSL_REDIRECT', not DEBUG)
-SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000' if not DEBUG else '0'))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = _get_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', not DEBUG)
-SECURE_HSTS_PRELOAD = _get_bool('SECURE_HSTS_PRELOAD', not DEBUG)
+SESSION_COOKIE_SECURE = _get_bool('SESSION_COOKIE_SECURE', IS_PRODUCTION)
+CSRF_COOKIE_SECURE = _get_bool('CSRF_COOKIE_SECURE', IS_PRODUCTION)
+SECURE_SSL_REDIRECT = _get_bool('SECURE_SSL_REDIRECT', IS_PRODUCTION)
+SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000' if IS_PRODUCTION else '0'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _get_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', IS_PRODUCTION)
+SECURE_HSTS_PRELOAD = _get_bool('SECURE_HSTS_PRELOAD', IS_PRODUCTION)
 
 
 # ==============================
@@ -183,6 +186,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
 }
 
 

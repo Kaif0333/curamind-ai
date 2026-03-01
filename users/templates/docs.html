@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="ui-card p-4 mb-3">
+    <span class="eyebrow">Route Index</span>
+    <h2 class="mb-2">Web and API Endpoints</h2>
+    <p class="muted-note mb-0">Click any endpoint to open it. Use copy buttons for API testing in Postman/Swagger.</p>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="ui-card p-4 h-100">
+            <h4 class="mb-3">Web Routes</h4>
+            <div class="d-grid gap-2">
+                <a class="btn btn-outline-dark text-start" href="/">/ - Home page</a>
+                <a class="btn btn-outline-dark text-start" href="/health/">/health/ - Health check</a>
+                <a class="btn btn-outline-dark text-start" href="/docs/">/docs/ - API docs</a>
+                <a class="btn btn-outline-dark text-start" href="/accounts/register/">/accounts/register/ - Register</a>
+                <a class="btn btn-outline-dark text-start" href="/accounts/login/">/accounts/login/ - Login</a>
+                <a class="btn btn-outline-dark text-start" href="/admin/">/admin/ - Admin panel</a>
+                <a class="btn btn-outline-dark text-start" href="/appointments/">/appointments/ - Role entry</a>
+                <a class="btn btn-outline-dark text-start" href="/doctor/">/doctor/ - Doctor shortcut</a>
+                <a class="btn btn-outline-dark text-start" href="/patient/">/patient/ - Patient shortcut</a>
+                <a class="btn btn-outline-dark text-start" href="/book/">/book/ - Booking shortcut</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="ui-card p-4 h-100">
+            <h4 class="mb-3">API Routes</h4>
+            <div class="d-grid gap-2">
+                <button class="btn btn-outline-secondary text-start copy-route" data-route="GET /api/schema/">GET /api/schema/</button>
+                <button class="btn btn-outline-secondary text-start copy-route" data-route="POST /api/token/">POST /api/token/</button>
+                <button class="btn btn-outline-secondary text-start copy-route" data-route="POST /api/token/refresh/">POST /api/token/refresh/</button>
+                <button class="btn btn-outline-secondary text-start copy-route" data-route="GET /users/api/appointments/">GET /users/api/appointments/</button>
+                <button class="btn btn-outline-secondary text-start copy-route" data-route="GET /users/api/appointments/?status=pending">GET /users/api/appointments/?status=pending</button>
+                <button class="btn btn-outline-secondary text-start copy-route" data-route="GET /users/api/appointments/?date_from=2026-03-01&date_to=2026-03-31">GET /users/api/appointments/?date_from=2026-03-01&date_to=2026-03-31</button>
+                <button class="btn btn-outline-secondary text-start copy-route" data-route="GET /users/api/appointments/?page=2">GET /users/api/appointments/?page=2</button>
+                <button class="btn btn-outline-secondary text-start copy-route" data-route="POST /users/api/appointments/">POST /users/api/appointments/</button>
+                <button class="btn btn-outline-secondary text-start copy-route" data-route="POST /users/api/appointments/<id>/status/">POST /users/api/appointments/&lt;id&gt;/status/</button>
+            </div>
+            <small class="text-muted mt-2 d-block">Click an API row to copy it.</small>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".copy-route").forEach(btn => {
+    btn.addEventListener("click", async function () {
+      const text = btn.getAttribute("data-route");
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.classList.remove("btn-outline-secondary");
+        btn.classList.add("btn-success");
+        btn.textContent = text + " (copied)";
+        setTimeout(() => {
+          btn.classList.remove("btn-success");
+          btn.classList.add("btn-outline-secondary");
+          btn.textContent = text;
+        }, 1000);
+      } catch (_) {}
+    });
+  });
+});
+</script>
+{% endblock %}

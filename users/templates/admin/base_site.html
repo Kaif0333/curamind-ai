@@ -1,0 +1,35 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    :root {
+        --admin-brand: #0f766e;
+        --admin-accent: #f59e0b;
+    }
+    #header {
+        background: linear-gradient(120deg, #0f172a, var(--admin-brand));
+    }
+    #branding h1 {
+        font-weight: 700;
+        letter-spacing: .02em;
+    }
+    #branding h1 a:link, #branding h1 a:visited {
+        color: #fff;
+    }
+    .module h2, .module caption, .inline-group h2 {
+        background: linear-gradient(90deg, rgba(15,118,110,.18), rgba(245,158,11,.18));
+        color: #134e4a;
+    }
+</style>
+{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">CuraMind Control Center</a></h1>
+{% endblock %}
+
+{% block nav-global %}
+<a href="/" style="color:#fff; font-weight:600; margin-right:1rem;">View Site</a>
+<a href="/docs/" style="color:#fff; font-weight:600;">API Docs</a>
+{% endblock %}

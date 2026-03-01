@@ -1,26 +1,52 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login
 from django.contrib import messages
 from django.http import HttpResponse, HttpResponseForbidden
 from django.core.mail import send_mail
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.views.decorators.http import require_POST
-from .models import Appointment, User
+from django.db.models import Q
+from django.utils import timezone
+from .models import Appointment
+from .forms import AppointmentBookingForm, PatientRegistrationForm
 
 
 def _require_user_type(user, expected_type):
     return user.is_authenticated and user.user_type == expected_type
 
 
+def register_patient(request):
+    if request.user.is_authenticated:
+        return redirect('role_redirect')
+
+    if request.method == "POST":
+        form = PatientRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('patient_dashboard')
+        form_errors = []
+        for _, errors in form.errors.items():
+            form_errors.extend(errors)
+        messages.error(request, "; ".join(form_errors) or "Please fix the form errors.")
+    else:
+        form = PatientRegistrationForm()
+
+    return render(request, 'registration/register.html', {'form': form})
+
+
 @login_required
 def role_redirect(request):
-    if request.user.is_staff or request.user.is_superuser:
+    if request.user.is_superuser:
         return redirect('/admin/')
     if request.user.user_type == 'doctor':
         return redirect('doctor_dashboard')
     elif request.user.user_type == 'patient':
         return redirect('patient_dashboard')
+    if request.user.is_staff:
+        return redirect('/admin/')
     return HttpResponse("Invalid role")
 
 
@@ -31,9 +57,24 @@ def patient_dashboard(request):
     if not _require_user_type(request.user, 'patient'):
         return HttpResponseForbidden("Only patients can access this page.")
 
-    appointments = Appointment.objects.filter(patient=request.user).order_by('-date', '-time')
+    appointments = Appointment.objects.filter(patient=request.user)
+    status_filter = request.GET.get('status', '').strip()
+    query = request.GET.get('q', '').strip()
+    date_filter = request.GET.get('date', '').strip()
+
+    if status_filter in ['pending', 'approved', 'rejected']:
+        appointments = appointments.filter(status=status_filter)
+    if query:
+        appointments = appointments.filter(Q(doctor__username__icontains=query) | Q(description__icontains=query))
+    if date_filter:
+        appointments = appointments.filter(date=date_filter)
+
+    appointments = appointments.order_by('-date', '-time')
     return render(request, 'users/patient_dashboard.html', {
-        'appointments': appointments
+        'appointments': appointments,
+        'status_filter': status_filter,
+        'query': query,
+        'date_filter': date_filter,
     })
 
 
@@ -42,33 +83,20 @@ def book_appointment(request):
     if not _require_user_type(request.user, 'patient'):
         return HttpResponseForbidden("Only patients can book appointments.")
 
-    doctors = User.objects.filter(user_type='doctor')
     if request.method == "POST":
-        doctor_id = request.POST.get('doctor')
-        date = request.POST.get('date')
-        time = request.POST.get('time')
-        description = request.POST.get('description')
-        doctor = get_object_or_404(User, id=doctor_id, user_type='doctor')
-
-        try:
-            Appointment.objects.create(
-                patient=request.user,
-                doctor=doctor,
-                date=date,
-                time=time,
-                description=description,
-                status='pending'
-            )
-        except ValidationError as exc:
-            booking_error = "; ".join(
-                [message for messages in exc.message_dict.values() for message in messages]
-            )
-            messages.error(request, booking_error)
-        else:
+        form = AppointmentBookingForm(request.POST)
+        if form.is_valid():
+            form.save(patient=request.user)
             return redirect('patient_dashboard')
+        form_errors = []
+        for _, errors in form.errors.items():
+            form_errors.extend(errors)
+        messages.error(request, "; ".join(form_errors) or "Please fix the form errors.")
+    else:
+        form = AppointmentBookingForm()
 
     return render(request, 'users/book_appointment.html', {
-        'doctors': doctors,
+        'form': form,
     })
 
 
@@ -79,9 +107,34 @@ def doctor_dashboard(request):
     if not _require_user_type(request.user, 'doctor'):
         return HttpResponseForbidden("Only doctors can access this page.")
 
-    appointments = Appointment.objects.filter(doctor=request.user).order_by('-date', '-time')
+    appointments = Appointment.objects.filter(doctor=request.user)
+    status_filter = request.GET.get('status', '').strip()
+    query = request.GET.get('q', '').strip()
+    date_filter = request.GET.get('date', '').strip()
+
+    if status_filter in ['pending', 'approved', 'rejected']:
+        appointments = appointments.filter(status=status_filter)
+    if query:
+        appointments = appointments.filter(Q(patient__username__icontains=query) | Q(description__icontains=query))
+    if date_filter:
+        appointments = appointments.filter(date=date_filter)
+
+    appointments = appointments.order_by('-date', '-time')
+    today = timezone.localdate()
+    today_counts = list(Appointment.objects.filter(doctor=request.user, date=today).values_list('status', flat=True))
+    summary = {
+        'today_total': len(today_counts),
+        'today_pending': today_counts.count('pending'),
+        'today_approved': today_counts.count('approved'),
+        'today_rejected': today_counts.count('rejected'),
+    }
     return render(request, 'users/doctor_dashboard.html', {
-        'appointments': appointments
+        'appointments': appointments,
+        'status_filter': status_filter,
+        'query': query,
+        'date_filter': date_filter,
+        'summary': summary,
+        'today': today,
     })
 
 
