@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
+from django.contrib.auth.decorators import user_passes_test
 from django.views.generic import RedirectView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.schemas import get_schema_view
@@ -20,15 +21,21 @@ schema_view = get_schema_view(
     renderer_classes=[JSONOpenAPIRenderer],
 )
 
+
+staff_or_superuser_required = user_passes_test(
+    lambda u: u.is_authenticated and (u.is_staff or u.is_superuser),
+    login_url='/accounts/login/',
+)
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home, name='home'),
     path('health/', health, name='health'),
-    path('docs/', docs, name='docs'),
-    path('routes/', routes, name='routes'),
+    path('docs/', staff_or_superuser_required(docs), name='docs'),
+    path('routes/', staff_or_superuser_required(routes), name='routes'),
 
     path('users/', include('users.urls')),
-    path('api/schema/', schema_view, name='api_schema'),
+    path('api/schema/', staff_or_superuser_required(schema_view), name='api_schema'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('doctor/', RedirectView.as_view(pattern_name='doctor_dashboard', permanent=False)),

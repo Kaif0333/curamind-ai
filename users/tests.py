@@ -192,15 +192,18 @@ class AuthAndRoutingTests(TestCase):
 
     def test_docs_route_available(self):
         response = self.client.get(reverse("docs"))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
 
     def test_routes_page_available(self):
         response = self.client.get(reverse("routes"))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
 
     def test_openapi_schema_available(self):
         response = self.client.get(reverse("api_schema"))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response.url)
 
     def test_accounts_shortcut_redirects_to_login(self):
         response = self.client.get("/accounts/")
@@ -242,6 +245,15 @@ class AuthAndRoutingTests(TestCase):
         response = self.client.get(reverse("role_redirect"))
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, "/users/patient/")
+
+    def test_staff_can_access_docs_and_routes(self):
+        self.client.login(username="staff1", password="StrongPass123!")
+        docs_response = self.client.get(reverse("docs"))
+        routes_response = self.client.get(reverse("routes"))
+        schema_response = self.client.get(reverse("api_schema"))
+        self.assertEqual(docs_response.status_code, 200)
+        self.assertEqual(routes_response.status_code, 200)
+        self.assertEqual(schema_response.status_code, 200)
 
     def test_superuser_defaults_to_patient_user_type(self):
         superuser = User.objects.create_superuser(
