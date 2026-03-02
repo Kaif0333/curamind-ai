@@ -3,14 +3,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login
 from django.contrib import messages
 from django.http import HttpResponse, HttpResponseForbidden
-from django.core.mail import send_mail
 from django.core.exceptions import ValidationError
-from django.conf import settings
 from django.views.decorators.http import require_POST
 from django.db.models import Q
 from django.utils import timezone
 from .models import Appointment
-from .forms import AppointmentBookingForm, PatientRegistrationForm
+from .forms import AppointmentBookingForm, PatientRegistrationForm, DoctorRegistrationForm
+from .notifications import send_appointment_status_email
 
 
 def _require_user_type(user, expected_type):
@@ -18,23 +17,43 @@ def _require_user_type(user, expected_type):
 
 
 def register_patient(request):
+    return _register_user(
+        request,
+        form_class=PatientRegistrationForm,
+        template_name='registration/register.html',
+        role_label='Patient',
+        redirect_name='patient_dashboard',
+    )
+
+
+def register_doctor(request):
+    return _register_user(
+        request,
+        form_class=DoctorRegistrationForm,
+        template_name='registration/register.html',
+        role_label='Doctor',
+        redirect_name='doctor_dashboard',
+    )
+
+
+def _register_user(request, form_class, template_name, role_label, redirect_name):
     if request.user.is_authenticated:
         return redirect('role_redirect')
 
     if request.method == "POST":
-        form = PatientRegistrationForm(request.POST)
+        form = form_class(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
-            return redirect('patient_dashboard')
+            return redirect(redirect_name)
         form_errors = []
         for _, errors in form.errors.items():
             form_errors.extend(errors)
         messages.error(request, "; ".join(form_errors) or "Please fix the form errors.")
     else:
-        form = PatientRegistrationForm()
+        form = form_class()
 
-    return render(request, 'registration/register.html', {'form': form})
+    return render(request, template_name, {'form': form, 'role_label': role_label})
 
 
 @login_required
@@ -157,13 +176,8 @@ def approve_appointment(request, appointment_id):
         ))
         return redirect('doctor_dashboard')
 
-    send_mail(
-        'Appointment Approved',
-        f'Your appointment on {appointment.date} is approved.',
-        settings.DEFAULT_FROM_EMAIL,
-        [appointment.patient.email],
-        fail_silently=True
-    )
+    if not send_appointment_status_email(appointment):
+        messages.warning(request, "Appointment approved, but confirmation email could not be sent.")
 
     return redirect('doctor_dashboard')
 
@@ -187,12 +201,7 @@ def reject_appointment(request, appointment_id):
         ))
         return redirect('doctor_dashboard')
 
-    send_mail(
-        'Appointment Rejected',
-        'Your appointment was rejected.',
-        settings.DEFAULT_FROM_EMAIL,
-        [appointment.patient.email],
-        fail_silently=True
-    )
+    if not send_appointment_status_email(appointment):
+        messages.warning(request, "Appointment rejected, but confirmation email could not be sent.")
 
     return redirect('doctor_dashboard')

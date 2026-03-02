@@ -3,8 +3,10 @@ from django.core.management import call_command
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
+from django.core import mail
 from rest_framework.test import APIClient
 from .models import User, Appointment
 
@@ -76,6 +78,17 @@ class AppointmentFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.appointment.refresh_from_db()
         self.assertEqual(self.appointment.status, "approved")
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="noreply@example.com",
+    )
+    def test_approve_sends_confirmation_email_to_patient(self):
+        self.client.login(username="doctor1", password="StrongPass123!")
+        self.client.post(reverse("approve_appointment", args=[self.appointment.id]))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["patient1@example.com"])
+        self.assertIn("Approved", mail.outbox[0].subject)
 
     def test_doctor_cannot_approve_other_doctor_appointment(self):
         self.client.login(username="doctor2", password="StrongPass123!")
@@ -162,6 +175,17 @@ class AppointmentFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         past_appointment.refresh_from_db()
         self.assertEqual(past_appointment.status, "rejected")
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="noreply@example.com",
+    )
+    def test_reject_sends_confirmation_email_to_patient(self):
+        self.client.login(username="doctor1", password="StrongPass123!")
+        self.client.post(reverse("reject_appointment", args=[self.appointment.id]))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["patient1@example.com"])
+        self.assertIn("Rejected", mail.outbox[0].subject)
 
 
 class AuthAndRoutingTests(TestCase):
@@ -292,6 +316,20 @@ class AuthAndRoutingTests(TestCase):
         user = User.objects.get(username="new_patient")
         self.assertEqual(user.user_type, "patient")
 
+    def test_doctor_registration_flow(self):
+        response = self.client.post(
+            reverse("register_doctor"),
+            {
+                "username": "new_doctor",
+                "email": "new_doctor@example.com",
+                "password1": "StrongPass123!",
+                "password2": "StrongPass123!",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        user = User.objects.get(username="new_doctor")
+        self.assertEqual(user.user_type, "doctor")
+
 
 class AppointmentAPITests(TestCase):
     def setUp(self):
@@ -383,6 +421,21 @@ class AppointmentAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.appointment.refresh_from_db()
         self.assertEqual(self.appointment.status, "approved")
+
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        DEFAULT_FROM_EMAIL="noreply@example.com",
+    )
+    def test_api_status_update_sends_email(self):
+        self.client.force_authenticate(user=self.doctor)
+        response = self.client.post(
+            reverse("api_appointment_status", args=[self.appointment.id]),
+            {"status": "approved"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["email_sent"])
+        self.assertEqual(len(mail.outbox), 1)
 
     def test_patient_cannot_update_status_via_api(self):
         self.client.force_authenticate(user=self.patient)

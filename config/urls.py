@@ -9,7 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONOpenAPIRenderer
 
 from users.forms import LoginForm
-from users.views import register_patient
+from users.views import register_patient, register_doctor
 from .views import home, docs, routes, health
 
 schema_view = get_schema_view(
@@ -46,7 +46,9 @@ urlpatterns = [
     path('login/', RedirectView.as_view(pattern_name='login', permanent=False)),
     path('logout/', RedirectView.as_view(pattern_name='logout', permanent=False)),
     path('register/', RedirectView.as_view(pattern_name='register', permanent=False)),
+    path('register/doctor/', RedirectView.as_view(pattern_name='register_doctor', permanent=False)),
     path('accounts/register/', register_patient, name='register'),
+    path('accounts/register/doctor/', register_doctor, name='register_doctor'),
 
     path(
         'accounts/login/',

@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from .models import Appointment
+from .notifications import send_appointment_status_email
 from .serializers import (
     AppointmentSerializer,
     AppointmentCreateSerializer,
@@ -90,4 +91,7 @@ class AppointmentStatusUpdateAPI(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         appointment.status = serializer.validated_data["status"]
         appointment.save()
-        return Response(AppointmentSerializer(appointment).data, status=status.HTTP_200_OK)
+        email_sent = send_appointment_status_email(appointment)
+        payload = AppointmentSerializer(appointment).data
+        payload["email_sent"] = email_sent
+        return Response(payload, status=status.HTTP_200_OK)

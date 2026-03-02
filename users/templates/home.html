@@ -12,7 +12,8 @@
             <a class="btn btn-brand btn-lg" href="{% url 'role_redirect' %}">Open Dashboard</a>
         {% else %}
             <a class="btn btn-brand btn-lg" href="{% url 'login' %}">Login</a>
-            <a class="btn btn-success btn-lg" href="{% url 'register' %}">Register</a>
+            <a class="btn btn-success btn-lg" href="{% url 'register' %}">Register as Patient</a>
+            <a class="btn btn-outline-success btn-lg" href="{% url 'register_doctor' %}">Register as Doctor</a>
         {% endif %}
         <a class="btn btn-outline-dark btn-lg" href="/admin/">Admin</a>
     </div>

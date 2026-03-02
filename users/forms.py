@@ -54,3 +54,24 @@ class PatientRegistrationForm(UserCreationForm):
         if commit:
             user.save()
         return user
+
+
+class DoctorRegistrationForm(UserCreationForm):
+    email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={"class": "form-control"}))
+
+    class Meta:
+        model = User
+        fields = ["username", "email", "password1", "password2"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["username"].widget.attrs.update({"class": "form-control"})
+        self.fields["password1"].widget.attrs.update({"class": "form-control"})
+        self.fields["password2"].widget.attrs.update({"class": "form-control"})
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.user_type = "doctor"
+        if commit:
+            user.save()
+        return user
