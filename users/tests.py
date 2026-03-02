@@ -1,4 +1,5 @@
 from datetime import time, timedelta
+from unittest.mock import Mock, patch
 from django.core.management import call_command
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -498,3 +499,58 @@ class DataIntegrityAndCommandTests(TestCase):
         call_command("seed_demo")
         self.assertTrue(User.objects.filter(username="demo_doctor", user_type="doctor").exists())
         self.assertTrue(User.objects.filter(username="demo_patient", user_type="patient").exists())
+
+
+class NotificationProviderTests(TestCase):
+    def setUp(self):
+        future_date = timezone.localdate() + timedelta(days=5)
+        self.patient = User.objects.create_user(
+            username="notify_patient",
+            password="StrongPass123!",
+            user_type="patient",
+            email="notify_patient@example.com",
+        )
+        self.doctor = User.objects.create_user(
+            username="notify_doctor",
+            password="StrongPass123!",
+            user_type="doctor",
+            email="notify_doctor@example.com",
+        )
+        self.appointment = Appointment.objects.create(
+            patient=self.patient,
+            doctor=self.doctor,
+            date=future_date,
+            time=time(11, 15),
+            description="Notification test",
+            status="approved",
+        )
+
+    @override_settings(
+        EMAIL_PROVIDER="resend",
+        RESEND_API_KEY="re_test_123",
+        RESEND_FROM_EMAIL="noreply@example.com",
+    )
+    @patch("users.notifications.requests.post")
+    def test_resend_provider_success(self, mock_post):
+        from .notifications import send_appointment_status_email
+
+        response = Mock()
+        response.raise_for_status = Mock()
+        mock_post.return_value = response
+
+        sent = send_appointment_status_email(self.appointment)
+        self.assertTrue(sent)
+        self.assertTrue(mock_post.called)
+
+    @override_settings(
+        EMAIL_PROVIDER="resend",
+        RESEND_API_KEY="",
+        RESEND_FROM_EMAIL="",
+    )
+    @patch("users.notifications.requests.post")
+    def test_resend_provider_missing_config_returns_false(self, mock_post):
+        from .notifications import send_appointment_status_email
+
+        sent = send_appointment_status_email(self.appointment)
+        self.assertFalse(sent)
+        mock_post.assert_not_called()
