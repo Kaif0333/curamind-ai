@@ -28,14 +28,17 @@ services:
       DJANGO_ENV: production
       DEBUG: "False"
       SECURE_SSL_REDIRECT: "False"
-      DJANGO_SECRET_KEY: "replace-me"
+      SESSION_COOKIE_SECURE: "False"
+      CSRF_COOKIE_SECURE: "False"
+      SECURE_HSTS_SECONDS: "0"
+      DJANGO_SECRET_KEY: "curamind-local-development-secret-key-please-change"
       DATABASE_URL: postgres://curamind:curamind@postgres:5432/curamind
       REDIS_URL: redis://redis:6379/0
       MONGO_URI: mongodb://mongodb:27017
       MONGO_DB_NAME: curamind
       AI_SERVICE_URL: http://fastapi:8001
       ALLOWED_HOSTS: "*"
-      CSRF_TRUSTED_ORIGINS: "http://localhost,http://127.0.0.1"
+      CSRF_TRUSTED_ORIGINS: "http://localhost,http://127.0.0.1,http://localhost:8000,http://127.0.0.1:8000,https://localhost,https://127.0.0.1"
     depends_on:
       - postgres
       - redis
@@ -67,12 +70,17 @@ services:
     environment:
       DJANGO_ENV: production
       DEBUG: "False"
-      DJANGO_SECRET_KEY: "replace-me"
+      SESSION_COOKIE_SECURE: "False"
+      CSRF_COOKIE_SECURE: "False"
+      SECURE_HSTS_SECONDS: "0"
+      DJANGO_SECRET_KEY: "curamind-local-development-secret-key-please-change"
       DATABASE_URL: postgres://curamind:curamind@postgres:5432/curamind
       REDIS_URL: redis://redis:6379/0
       MONGO_URI: mongodb://mongodb:27017
       MONGO_DB_NAME: curamind
       AI_SERVICE_URL: http://fastapi:8001
+    volumes:
+      - media_data:/app/media
     depends_on:
       - django
       - redis

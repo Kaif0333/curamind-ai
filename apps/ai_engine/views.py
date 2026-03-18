@@ -1,3 +1,4 @@
+from apps.appointments.models import Appointment
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -20,6 +21,14 @@ class AIResultView(APIView):
 
         user = request.user
         if user.role == User.Role.PATIENT and image.patient.user != user:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        if user.role == User.Role.DOCTOR:
+            doctor_profile = getattr(user, "doctor_profile", None)
+            if not doctor_profile or not (
+                Appointment.objects.filter(doctor=doctor_profile, patient=image.patient).exists()
+            ):
+                return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        if user.role == User.Role.NURSE:
             return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
 
         result_doc = get_ai_result_by_image(str(image.id))

@@ -9,7 +9,6 @@ from apps.doctors.views import DoctorPatientsView
 from apps.imaging.views import ImageUploadView
 from apps.medical_records.views import PatientRecordsView
 from apps.reports.views import ReportListView
-from apps.ai_engine.views import AIResultView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -28,6 +27,5 @@ urlpatterns = [
     path("doctor/patients", DoctorPatientsView.as_view(), name="doctor-patients"),
     path("appointments", AppointmentCreateView.as_view(), name="appointments-create"),
     path("reports", ReportListView.as_view(), name="reports-list"),
-    path("ai-result", AIResultView.as_view(), name="ai-result"),
     path("", include("apps.portal.urls")),
 ]

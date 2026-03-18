@@ -22,8 +22,10 @@ class ReportListView(APIView):
         user = request.user
         if user.role == User.Role.PATIENT:
             reports = Report.objects.filter(medical_record__patient__user=user)
-        elif user.role in {User.Role.DOCTOR, User.Role.RADIOLOGIST}:
+        elif user.role == User.Role.DOCTOR:
             reports = Report.objects.filter(author=user)
+        elif user.role == User.Role.RADIOLOGIST:
+            reports = Report.objects.all()
         else:
             reports = Report.objects.all()
         log_action(user, "report_view", request)
@@ -42,6 +44,11 @@ class ReportCreateView(APIView):
         if not record:
             return Response(
                 {"detail": "Medical record not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        if record.doctor.user != request.user:
+            return Response(
+                {"detail": "You can only create reports for your own medical records."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         report = Report.objects.create(
@@ -69,6 +76,11 @@ class ReportApproveView(APIView):
         report = Report.objects.filter(id=report_id).first()
         if not report:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
+        if report.status != Report.Status.DRAFT:
+            return Response(
+                {"detail": "Only draft reports can be approved."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer = ReportApproveSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         if serializer.validated_data.get("approve"):

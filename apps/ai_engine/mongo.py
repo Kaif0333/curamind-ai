@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import logging
 
 from django.conf import settings
 from bson import ObjectId
 from pymongo import MongoClient
+from pymongo.errors import PyMongoError
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
 def _client() -> MongoClient:
-    return MongoClient(settings.MONGO_URI)
+    return MongoClient(settings.MONGO_URI, serverSelectionTimeoutMS=1000)
 
 
 def get_db():
@@ -29,7 +33,11 @@ def store_image_metadata(image_id: str, metadata: dict) -> str:
 
 
 def get_ai_result_by_image(image_id: str) -> dict | None:
-    return get_db().ai_results.find_one({"image_id": image_id})
+    try:
+        return get_db().ai_results.find_one({"image_id": image_id})
+    except PyMongoError:
+        logger.exception("Failed to fetch AI result for image %s", image_id)
+        return None
 
 
 def get_ai_result_by_id(result_id: str) -> dict | None:
@@ -37,4 +45,8 @@ def get_ai_result_by_id(result_id: str) -> dict | None:
         oid = ObjectId(result_id)
     except Exception:
         return None
-    return get_db().ai_results.find_one({"_id": oid})
+    try:
+        return get_db().ai_results.find_one({"_id": oid})
+    except PyMongoError:
+        logger.exception("Failed to fetch AI result by id %s", result_id)
+        return None

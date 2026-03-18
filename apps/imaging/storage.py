@@ -34,7 +34,8 @@ class S3StorageService:
             self.client = None
 
     def build_key(self, filename: str) -> str:
-        return f"medical-images/{uuid.uuid4()}-{filename}"
+        safe_name = Path(filename).name.replace(" ", "_")
+        return f"medical-images/{uuid.uuid4()}-{safe_name}"
 
     def upload(self, file_obj, key: str) -> str:
         if self.use_s3:

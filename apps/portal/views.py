@@ -5,6 +5,7 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.http import HttpRequest
+from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -143,7 +144,9 @@ def dashboard(request: HttpRequest):
         records = MedicalRecord.objects.filter(doctor=doctor).order_by("-created_at")
         reports = Report.objects.filter(author=user).order_by("-created_at")
         assigned_patients = (
-            PatientProfile.objects.filter(appointments__doctor=doctor)
+            PatientProfile.objects.filter(
+                Q(appointments__doctor=doctor) | Q(medical_records__doctor=doctor)
+            )
             .select_related("user")
             .distinct()
         )
@@ -153,8 +156,8 @@ def dashboard(request: HttpRequest):
             "reports": reports,
             "assigned_patients": assigned_patients,
             "appointment_status_form": AppointmentStatusForm(),
-            "record_form": MedicalRecordCreateForm(),
-            "report_form": ReportCreateForm(),
+            "record_form": MedicalRecordCreateForm(user=user),
+            "report_form": ReportCreateForm(user=user),
         }
         return _render_dashboard(request, "portal/dashboard_doctor.html", context)
 
@@ -213,8 +216,12 @@ def upload_image(request: HttpRequest):
     if request.method == "POST" and form.is_valid():
         upload = form.cleaned_data["file"]
         modality = form.cleaned_data.get("modality", "")
-        handle_image_upload(request.user, upload, request=request, modality=modality)
-        messages.success(request, "Image uploaded")
+        try:
+            handle_image_upload(request.user, upload, request=request, modality=modality)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Image uploaded")
     else:
         messages.error(request, "Invalid upload")
     return redirect("portal-dashboard")
@@ -256,7 +263,7 @@ def create_medical_record(request: HttpRequest):
         messages.error(request, "Not authorized")
         return redirect("portal-dashboard")
 
-    form = MedicalRecordCreateForm(request.POST or None)
+    form = MedicalRecordCreateForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
         record = form.save(commit=False)
         record.doctor = request.user.doctor_profile
@@ -275,7 +282,7 @@ def create_report(request: HttpRequest):
         messages.error(request, "Not authorized")
         return redirect("portal-dashboard")
 
-    form = ReportCreateForm(request.POST or None)
+    form = ReportCreateForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
         report = form.save(commit=False)
         report.author = request.user
@@ -307,6 +314,9 @@ def approve_report(request: HttpRequest, report_id: str):
 
     form = ReportApproveForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
+        if report.status != Report.Status.DRAFT:
+            messages.error(request, "Only draft reports can be approved")
+            return redirect("portal-dashboard")
         report.status = Report.Status.APPROVED
         report.approved_at = timezone.now()
         report.save(update_fields=["status", "approved_at"])

@@ -1,3 +1,4 @@
+from apps.appointments.models import Appointment
 from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.response import Response
@@ -32,9 +33,19 @@ class MedicalRecordCreateView(APIView):
         patient = PatientProfile.objects.filter(id=serializer.validated_data["patient_id"]).first()
         if not patient:
             return Response({"detail": "Patient not found"}, status=status.HTTP_404_NOT_FOUND)
+        doctor_profile = request.user.doctor_profile
+        is_assigned_patient = (
+            Appointment.objects.filter(doctor=doctor_profile, patient=patient).exists()
+            or MedicalRecord.objects.filter(doctor=doctor_profile, patient=patient).exists()
+        )
+        if not is_assigned_patient:
+            return Response(
+                {"detail": "You can only create records for assigned patients."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         record = MedicalRecord.objects.create(
             patient=patient,
-            doctor=request.user.doctor_profile,
+            doctor=doctor_profile,
             diagnosis_text=serializer.validated_data["diagnosis_text"],
             ai_analysis=serializer.validated_data.get("ai_analysis", {}),
         )

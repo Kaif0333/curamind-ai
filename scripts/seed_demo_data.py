@@ -148,9 +148,7 @@ def main() -> None:
         doctor=doctor_profile,
         diagnosis_text="Preliminary respiratory assessment for demo workflow.",
         defaults={
-            "ai_analysis": {
-                "summary": "No confirmed diagnosis. Awaiting radiology confirmation."
-            }
+            "ai_analysis": {"summary": "No confirmed diagnosis. Awaiting radiology confirmation."}
         },
     )
     Report.objects.get_or_create(

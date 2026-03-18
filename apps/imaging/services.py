@@ -13,7 +13,7 @@ from apps.audit_logs.utils import log_action
 from apps.authentication.models import User
 from apps.imaging.models import MedicalImage
 from apps.imaging.storage import S3StorageService
-from apps.imaging.tasks import ai_inference_task, preprocess_image_task
+from apps.imaging.tasks import queue_image_processing
 from apps.imaging.utils import extract_dicom_metadata, is_dicom_upload, validate_upload
 
 logger = logging.getLogger(__name__)
@@ -61,8 +61,7 @@ def handle_image_upload(
 
     if not settings.CELERY_TASK_ALWAYS_EAGER:
         try:
-            preprocess_image_task.delay(str(image.id))
-            ai_inference_task.delay(str(image.id))
+            queue_image_processing(str(image.id))
         except Exception:
             logger.exception("Failed to enqueue background processing for image %s", image.id)
 

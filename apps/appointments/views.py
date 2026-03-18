@@ -9,6 +9,7 @@ from apps.appointments.serializers import (
     AppointmentStatusSerializer,
 )
 from apps.audit_logs.utils import log_action
+from apps.authentication.models import User
 from apps.authentication.permissions import IsDoctor, IsPatient
 from apps.doctors.models import DoctorProfile
 from apps.notifications.tasks import send_email_notification
@@ -23,7 +24,7 @@ class AppointmentCreateView(APIView):
         doctor_id = serializer.validated_data["doctor_id"]
         scheduled_time = serializer.validated_data["scheduled_time"]
         reason = serializer.validated_data.get("reason", "")
-        doctor = DoctorProfile.objects.filter(id=doctor_id).first()
+        doctor = DoctorProfile.objects.filter(id=doctor_id, user__role=User.Role.DOCTOR).first()
         if not doctor:
             return Response({"detail": "Doctor not found"}, status=status.HTTP_404_NOT_FOUND)
         appointment = Appointment.objects.create(
