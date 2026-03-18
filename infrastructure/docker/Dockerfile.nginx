@@ -1,0 +1,12 @@
+FROM nginx:1.25
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY infrastructure/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY infrastructure/nginx/entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

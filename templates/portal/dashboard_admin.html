@@ -1,0 +1,57 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Admin Dashboard | CuraMind AI{% endblock %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <div>
+        <span class="eyebrow">Administrative oversight</span>
+        <h1>See platform activity across care, imaging, and audit trails.</h1>
+        <p>High-level visibility into operational volume and immutable event history.</p>
+    </div>
+    <div class="summary-row">
+        <div class="summary-card"><span>Users</span><strong>{{ user_count }}</strong></div>
+        <div class="summary-card"><span>Appointments</span><strong>{{ appointments }}</strong></div>
+        <div class="summary-card"><span>Records</span><strong>{{ records }}</strong></div>
+        <div class="summary-card"><span>Reports</span><strong>{{ reports }}</strong></div>
+        <div class="summary-card"><span>Images</span><strong>{{ images }}</strong></div>
+    </div>
+</section>
+
+<section class="dashboard-grid">
+    <article class="panel span-2">
+        <div class="section-header">
+            <h2>Recent audit events</h2>
+            <span>{{ recent_audit_logs|length }} latest records</span>
+        </div>
+        {% if recent_audit_logs %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Resource</th>
+                            <th>Timestamp</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in recent_audit_logs %}
+                            <tr>
+                                <td>{{ log.user.email|default:"Anonymous" }}</td>
+                                <td>{{ log.action }}</td>
+                                <td>{{ log.resource_id|default:"-" }}</td>
+                                <td>{{ log.timestamp|date:"M d, Y H:i" }}</td>
+                                <td>{{ log.ip_address|default:"-" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-state">No audit events recorded yet.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

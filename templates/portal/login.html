@@ -1,0 +1,26 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Login | CuraMind AI{% endblock %}
+{% block page_class %}auth-page{% endblock %}
+
+{% block content %}
+<section class="auth-layout">
+    <div class="auth-intro">
+        <span class="eyebrow">Secure sign in</span>
+        <h1>Step into your care workspace.</h1>
+        <p>
+            Patients, doctors, radiologists, and admins all share the same secure platform with role-based
+            access and immutable audit logging.
+        </p>
+    </div>
+    <div class="panel auth-panel">
+        <h2>Login</h2>
+        <form method="post" class="form-stack">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="primary-button">Sign In</button>
+        </form>
+        <p class="panel-note">New here? <a href="{% url 'portal-register' %}">Create a patient account</a>.</p>
+    </div>
+</section>
+{% endblock %}

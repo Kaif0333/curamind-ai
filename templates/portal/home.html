@@ -1,0 +1,53 @@
+{% extends "portal/base.html" %}
+
+{% block title %}CuraMind AI | Connected Diagnostics{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-copy">
+        <span class="eyebrow">HIPAA-aligned workflow</span>
+        <h1>Clinical imaging intake, AI triage, and physician coordination in one surface.</h1>
+        <p>
+            CuraMind AI connects patients, doctors, and radiologists through secure imaging uploads,
+            appointment scheduling, medical records, and AI-assisted anomaly review.
+        </p>
+        <div class="hero-actions">
+            <a href="{% url 'portal-register' %}" class="button-link">Open Patient Portal</a>
+            <a href="{% url 'portal-login' %}" class="ghost-link">Sign In</a>
+        </div>
+    </div>
+    <div class="hero-panel">
+        <div class="metric-card">
+            <span>Modalities</span>
+            <strong>MRI, CT, X-Ray, DICOM</strong>
+        </div>
+        <div class="metric-card">
+            <span>Inference stack</span>
+            <strong>FastAPI + PyTorch + Celery</strong>
+        </div>
+        <div class="metric-card">
+            <span>Security</span>
+            <strong>JWT, RBAC, audit logging, S3 encryption</strong>
+        </div>
+    </div>
+</section>
+
+<section class="feature-grid">
+    <article class="feature-card">
+        <h2>Patient intake that feels immediate</h2>
+        <p>Upload imaging studies, follow appointments, and access reports from a single dashboard.</p>
+    </article>
+    <article class="feature-card">
+        <h2>Doctor workflows that stay organized</h2>
+        <p>Create records, review patients, and author reports without hopping across disconnected tools.</p>
+    </article>
+    <article class="feature-card">
+        <h2>Radiology review with AI context</h2>
+        <p>Draft reports move through approval while AI outputs remain traceable and auditable.</p>
+    </article>
+    <article class="feature-card">
+        <h2>Infrastructure ready for scale</h2>
+        <p>Dockerized services with PostgreSQL, MongoDB, Redis, Nginx, and background workers.</p>
+    </article>
+</section>
+{% endblock %}

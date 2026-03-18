@@ -1,0 +1,134 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Patient Dashboard | CuraMind AI{% endblock %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <div>
+        <span class="eyebrow">Patient dashboard</span>
+        <h1>Your care timeline at a glance.</h1>
+        <p>Track appointments, imaging uploads, medical records, and published reports in one place.</p>
+    </div>
+    <div class="summary-row">
+        <div class="summary-card"><span>Appointments</span><strong>{{ appointments|length }}</strong></div>
+        <div class="summary-card"><span>Records</span><strong>{{ records|length }}</strong></div>
+        <div class="summary-card"><span>Reports</span><strong>{{ reports|length }}</strong></div>
+        <div class="summary-card"><span>Images</span><strong>{{ images|length }}</strong></div>
+    </div>
+</section>
+
+<section class="dashboard-grid">
+    <article class="panel">
+        <h2>Book appointment</h2>
+        <form method="post" action="{% url 'portal-book-appointment' %}" class="form-stack">
+            {% csrf_token %}
+            {{ appointment_form.as_p }}
+            <button type="submit" class="primary-button">Request appointment</button>
+        </form>
+    </article>
+    <article class="panel">
+        <h2>Upload imaging study</h2>
+        <form method="post" action="{% url 'portal-upload-image' %}" enctype="multipart/form-data" class="form-stack">
+            {% csrf_token %}
+            {{ image_form.as_p }}
+            <button type="submit" class="primary-button">Upload image</button>
+        </form>
+    </article>
+    <article class="panel span-2">
+        <div class="section-header">
+            <h2>Appointments</h2>
+            <span>{{ appointments|length }} scheduled items</span>
+        </div>
+        {% if appointments %}
+            <div class="list-grid">
+                {% for appointment in appointments %}
+                    <div class="list-card">
+                        <div class="list-top">
+                            <strong>{{ appointment.doctor.user.email }}</strong>
+                            <span class="status status-{{ appointment.status }}">{{ appointment.status|title }}</span>
+                        </div>
+                        <p>{{ appointment.scheduled_time|date:"M d, Y H:i" }}</p>
+                        <p>{{ appointment.reason|default:"No reason provided." }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">No appointments yet.</p>
+        {% endif %}
+    </article>
+    <article class="panel span-2">
+        <div class="section-header">
+            <h2>Medical records</h2>
+            <span>{{ records|length }} entries</span>
+        </div>
+        {% if records %}
+            <div class="list-grid">
+                {% for record in records %}
+                    <div class="list-card">
+                        <div class="list-top">
+                            <strong>{{ record.doctor.user.email }}</strong>
+                            <span>{{ record.created_at|date:"M d, Y" }}</span>
+                        </div>
+                        <p>{{ record.diagnosis_text }}</p>
+                        {% if record.ai_analysis %}
+                            <p class="muted-text">AI summary: {{ record.ai_analysis }}</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">No medical records yet.</p>
+        {% endif %}
+    </article>
+    <article class="panel span-2">
+        <div class="section-header">
+            <h2>Reports</h2>
+            <span>{{ reports|length }} documents</span>
+        </div>
+        {% if reports %}
+            <div class="list-grid">
+                {% for report in reports %}
+                    <div class="list-card">
+                        <div class="list-top">
+                            <strong>{{ report.author.email|default:"Unassigned author" }}</strong>
+                            <span class="status status-{{ report.status }}">{{ report.status|title }}</span>
+                        </div>
+                        <p>{{ report.content|truncatechars:200 }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">No reports available yet.</p>
+        {% endif %}
+    </article>
+    <article class="panel span-2">
+        <div class="section-header">
+            <h2>Imaging archive</h2>
+            <span>{{ images|length }} uploaded studies</span>
+        </div>
+        {% if images %}
+            <div class="list-grid">
+                {% for image in images %}
+                    <div class="list-card">
+                        <div class="list-top">
+                            <strong>{{ image.file_name }}</strong>
+                            <span class="status status-{{ image.status }}">{{ image.status|title }}</span>
+                        </div>
+                        <p>{{ image.modality|default:"Unknown modality" }} • {{ image.uploaded_at|date:"M d, Y H:i" }}</p>
+                        {% if image.ai_result.result.anomaly_probability %}
+                            <p class="muted-text">Anomaly probability: {{ image.ai_result.result.anomaly_probability }}</p>
+                        {% else %}
+                            <p class="muted-text">AI result pending or not yet available.</p>
+                        {% endif %}
+                        <div class="inline-actions">
+                            <a href="{{ image.download_url }}" class="ghost-link">Open file</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">No uploaded studies yet.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

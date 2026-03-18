@@ -1,0 +1,112 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Doctor Dashboard | CuraMind AI{% endblock %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <div>
+        <span class="eyebrow">Doctor dashboard</span>
+        <h1>Coordinate patient care and document each visit.</h1>
+        <p>Review appointment requests, write medical records, and draft reports for radiology approval.</p>
+    </div>
+    <div class="summary-row">
+        <div class="summary-card"><span>Patients</span><strong>{{ assigned_patients|length }}</strong></div>
+        <div class="summary-card"><span>Appointments</span><strong>{{ appointments|length }}</strong></div>
+        <div class="summary-card"><span>Records</span><strong>{{ records|length }}</strong></div>
+        <div class="summary-card"><span>Reports</span><strong>{{ reports|length }}</strong></div>
+    </div>
+</section>
+
+<section class="dashboard-grid">
+    <article class="panel">
+        <h2>Create medical record</h2>
+        <form method="post" action="{% url 'portal-create-record' %}" class="form-stack">
+            {% csrf_token %}
+            {{ record_form.as_p }}
+            <button type="submit" class="primary-button">Create record</button>
+        </form>
+    </article>
+    <article class="panel">
+        <h2>Draft report</h2>
+        <form method="post" action="{% url 'portal-create-report' %}" class="form-stack">
+            {% csrf_token %}
+            {{ report_form.as_p }}
+            <button type="submit" class="primary-button">Create report</button>
+        </form>
+    </article>
+    <article class="panel span-2">
+        <div class="section-header">
+            <h2>Assigned patients</h2>
+            <span>{{ assigned_patients|length }} active relationships</span>
+        </div>
+        {% if assigned_patients %}
+            <div class="list-grid">
+                {% for patient in assigned_patients %}
+                    <div class="list-card">
+                        <div class="list-top">
+                            <strong>{{ patient.user.email }}</strong>
+                            <span>{{ patient.phone|default:"No phone" }}</span>
+                        </div>
+                        <p>{{ patient.address|default:"Address not provided." }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">No assigned patients yet.</p>
+        {% endif %}
+    </article>
+    <article class="panel span-2">
+        <div class="section-header">
+            <h2>Appointment queue</h2>
+            <span>{{ appointments|length }} items</span>
+        </div>
+        {% if appointments %}
+            <div class="list-grid">
+                {% for appointment in appointments %}
+                    <div class="list-card">
+                        <div class="list-top">
+                            <strong>{{ appointment.patient.user.email }}</strong>
+                            <span class="status status-{{ appointment.status }}">{{ appointment.status|title }}</span>
+                        </div>
+                        <p>{{ appointment.scheduled_time|date:"M d, Y H:i" }}</p>
+                        <p>{{ appointment.reason|default:"No reason provided." }}</p>
+                        <form method="post" action="{% url 'portal-update-appointment-status' appointment.id %}" class="inline-form">
+                            {% csrf_token %}
+                            <select name="status">
+                                <option value="approved">Approve</option>
+                                <option value="rejected">Reject</option>
+                                <option value="completed">Complete</option>
+                                <option value="cancelled">Cancel</option>
+                            </select>
+                            <button type="submit" class="secondary-button">Update</button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">No appointment requests yet.</p>
+        {% endif %}
+    </article>
+    <article class="panel span-2">
+        <div class="section-header">
+            <h2>Recent records</h2>
+            <span>{{ records|length }} authored records</span>
+        </div>
+        {% if records %}
+            <div class="list-grid">
+                {% for record in records %}
+                    <div class="list-card">
+                        <div class="list-top">
+                            <strong>{{ record.patient.user.email }}</strong>
+                            <span>{{ record.created_at|date:"M d, Y" }}</span>
+                        </div>
+                        <p>{{ record.diagnosis_text|truncatechars:220 }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">No medical records created yet.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

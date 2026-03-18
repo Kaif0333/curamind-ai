@@ -1,0 +1,100 @@
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: curamind
+      POSTGRES_USER: curamind
+      POSTGRES_PASSWORD: curamind
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mongodb:
+    image: mongo:6
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7
+    restart: always
+
+  django:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.django
+    restart: always
+    environment:
+      DJANGO_ENV: production
+      DEBUG: "False"
+      SECURE_SSL_REDIRECT: "False"
+      DJANGO_SECRET_KEY: "replace-me"
+      DATABASE_URL: postgres://curamind:curamind@postgres:5432/curamind
+      REDIS_URL: redis://redis:6379/0
+      MONGO_URI: mongodb://mongodb:27017
+      MONGO_DB_NAME: curamind
+      AI_SERVICE_URL: http://fastapi:8001
+      ALLOWED_HOSTS: "*"
+      CSRF_TRUSTED_ORIGINS: "http://localhost,http://127.0.0.1"
+    depends_on:
+      - postgres
+      - redis
+      - mongodb
+    ports:
+      - "8000:8000"
+    volumes:
+      - static_data:/app/staticfiles
+      - media_data:/app/media
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.fastapi
+    restart: always
+    environment:
+      MONGO_URI: mongodb://mongodb:27017
+      MONGO_DB_NAME: curamind
+    depends_on:
+      - mongodb
+    ports:
+      - "8001:8001"
+
+  celery:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.celery
+    restart: always
+    environment:
+      DJANGO_ENV: production
+      DEBUG: "False"
+      DJANGO_SECRET_KEY: "replace-me"
+      DATABASE_URL: postgres://curamind:curamind@postgres:5432/curamind
+      REDIS_URL: redis://redis:6379/0
+      MONGO_URI: mongodb://mongodb:27017
+      MONGO_DB_NAME: curamind
+      AI_SERVICE_URL: http://fastapi:8001
+    depends_on:
+      - django
+      - redis
+      - mongodb
+
+  nginx:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - static_data:/app/staticfiles:ro
+      - media_data:/app/media:ro
+    depends_on:
+      - django
+      - fastapi
+
+volumes:
+  postgres_data:
+  mongo_data:
+  static_data:
+  media_data:

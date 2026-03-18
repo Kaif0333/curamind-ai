@@ -1,0 +1,26 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Register | CuraMind AI{% endblock %}
+{% block page_class %}auth-page{% endblock %}
+
+{% block content %}
+<section class="auth-layout">
+    <div class="auth-intro">
+        <span class="eyebrow">Patient onboarding</span>
+        <h1>Start your diagnostics journey with a secure profile.</h1>
+        <p>
+            Self-registration creates a patient account by default. Clinical roles can still be provisioned
+            through admin workflows or environment policy.
+        </p>
+    </div>
+    <div class="panel auth-panel">
+        <h2>Create Account</h2>
+        <form method="post" class="form-stack">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="primary-button">Create Account</button>
+        </form>
+        <p class="panel-note">Already registered? <a href="{% url 'portal-login' %}">Login instead</a>.</p>
+    </div>
+</section>
+{% endblock %}

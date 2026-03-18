@@ -1,0 +1,46 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Radiologist Dashboard | CuraMind AI{% endblock %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <div>
+        <span class="eyebrow">Radiologist review</span>
+        <h1>Approve draft reports with full clinical context.</h1>
+        <p>Review doctor-authored documents and promote them to approved reports once verified.</p>
+    </div>
+    <div class="summary-row">
+        <div class="summary-card"><span>Draft reports</span><strong>{{ reports|length }}</strong></div>
+    </div>
+</section>
+
+<section class="dashboard-grid">
+    <article class="panel span-2">
+        <div class="section-header">
+            <h2>Pending approvals</h2>
+            <span>{{ reports|length }} reports waiting</span>
+        </div>
+        {% if reports %}
+            <div class="list-grid">
+                {% for report in reports %}
+                    <div class="list-card">
+                        <div class="list-top">
+                            <strong>{{ report.medical_record.patient.user.email }}</strong>
+                            <span>{{ report.created_at|date:"M d, Y H:i" }}</span>
+                        </div>
+                        <p class="muted-text">Author: {{ report.author.email|default:"Unknown author" }}</p>
+                        <p>{{ report.content|truncatechars:260 }}</p>
+                        <form method="post" action="{% url 'portal-approve-report' report.id %}" class="inline-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="approve" value="on">
+                            <button type="submit" class="primary-button">Approve report</button>
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">No draft reports are waiting right now.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}
