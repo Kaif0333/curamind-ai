@@ -3,9 +3,9 @@ from __future__ import annotations
 import uuid
 
 from django.db import models
+from django.urls import reverse
 
 from apps.authentication.models import User
-from apps.imaging.storage import S3StorageService
 from apps.patients.models import PatientProfile
 
 
@@ -35,5 +35,4 @@ class MedicalImage(models.Model):
 
     @property
     def download_url(self) -> str:
-        storage = S3StorageService()
-        return storage.presigned_url(self.s3_key)
+        return reverse("image-download", kwargs={"image_id": self.id})

@@ -146,7 +146,7 @@
                             <p class="muted-text">AI result pending or not yet available.</p>
                         {% endif %}
                         <div class="inline-actions">
-                            <a href="{{ image.download_url }}" class="ghost-link">Open file</a>
+                            <a href="{% url 'portal-download-image' image.id %}" class="ghost-link">Open file</a>
                         </div>
                     </div>
                 {% endfor %}

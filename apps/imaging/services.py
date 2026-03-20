@@ -14,7 +14,11 @@ from apps.authentication.models import User
 from apps.imaging.models import MedicalImage
 from apps.imaging.storage import S3StorageService
 from apps.imaging.tasks import queue_image_processing
-from apps.imaging.utils import extract_dicom_metadata, is_dicom_upload, validate_upload
+from apps.imaging.utils import (
+    deidentify_dicom_bytes,
+    is_dicom_upload,
+    validate_upload,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +36,10 @@ def handle_image_upload(
     file_bytes = upload.read()
     metadata: dict[str, str] = {}
     resolved_modality = modality
+    dicom_upload = is_dicom_upload(upload.name, upload.content_type or "")
 
-    if is_dicom_upload(upload.name, upload.content_type or ""):
-        metadata = extract_dicom_metadata(file_bytes)
+    if dicom_upload:
+        file_bytes, metadata = deidentify_dicom_bytes(file_bytes)
         resolved_modality = metadata.get("Modality", modality)
 
     storage = S3StorageService()
@@ -66,6 +71,17 @@ def handle_image_upload(
         )
     except Exception:
         logger.exception("Failed to store upload processing log for image %s", image.id)
+
+    if dicom_upload:
+        try:
+            store_processing_log(
+                str(image.id),
+                "deidentify",
+                "completed",
+                {"stripped_tags": metadata.get("_stripped_tags", "")},
+            )
+        except Exception:
+            logger.exception("Failed to store deidentify log for image %s", image.id)
 
     if metadata:
         try:

@@ -36,4 +36,6 @@ docker compose up -d --build
 ## Security Notes
 - Enforce HTTPS in production
 - Use private S3 buckets with signed URLs
+- Serve medical images through authenticated app endpoints rather than public media paths
+- Keep DICOM de-identification enabled for all protected imaging uploads
 - Rotate credentials regularly

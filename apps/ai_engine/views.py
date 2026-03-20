@@ -1,29 +1,10 @@
-from apps.appointments.models import Appointment
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.ai_engine.mongo import get_ai_result_by_image, get_processing_logs_by_image
 from apps.audit_logs.utils import log_action
-from apps.authentication.models import User
-from apps.imaging.models import MedicalImage
-
-
-def _get_authorized_image(user, image_id: str) -> MedicalImage | None:
-    image = MedicalImage.objects.filter(id=image_id).select_related("patient__user").first()
-    if not image:
-        return None
-    if user.role == User.Role.PATIENT and image.patient.user != user:
-        return None
-    if user.role == User.Role.DOCTOR:
-        doctor_profile = getattr(user, "doctor_profile", None)
-        if not doctor_profile or not (
-            Appointment.objects.filter(doctor=doctor_profile, patient=image.patient).exists()
-        ):
-            return None
-    if user.role == User.Role.NURSE:
-        return None
-    return image
+from apps.imaging.access import get_authorized_image_for_user
 
 
 class AIResultView(APIView):
@@ -32,7 +13,7 @@ class AIResultView(APIView):
         if not image_id:
             return Response({"detail": "image_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        image = _get_authorized_image(request.user, image_id)
+        image = get_authorized_image_for_user(request.user, image_id)
         if not image:
             return Response({"detail": "Image not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -50,7 +31,7 @@ class AIProcessingLogsView(APIView):
         if not image_id:
             return Response({"detail": "image_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        image = _get_authorized_image(request.user, image_id)
+        image = get_authorized_image_for_user(request.user, image_id)
         if not image:
             return Response({"detail": "Image not found"}, status=status.HTTP_404_NOT_FOUND)
 

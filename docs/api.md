@@ -8,6 +8,7 @@
 - `POST /appointments`
 - `PATCH /appointments/<appointment_id>/cancel`
 - `POST /upload-image`
+- `GET /imaging/<image_id>/download`
 - `GET /patient/records`
 - `GET /doctor/patients`
 - `GET /records/<record_id>/diagnoses`
@@ -35,3 +36,5 @@
 - Use `Authorization: Bearer <token>`.
 - Rate limiting is enforced per user and IP.
 - `GET /audit-logs` is restricted to admins.
+- Medical image downloads are protected and no longer rely on public media URLs.
+- DICOM uploads are de-identified before they are persisted.

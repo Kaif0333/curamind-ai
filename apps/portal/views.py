@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
-from django.http import HttpRequest, HttpResponse
+from django.http import FileResponse, HttpRequest, HttpResponse, HttpResponseRedirect
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -17,8 +17,10 @@ from apps.audit_logs.utils import log_action
 from apps.authentication.models import LoginAttempt, User
 from apps.authentication.views import LOGIN_ATTEMPT_TTL, MAX_LOGIN_ATTEMPTS, _attempt_key
 from apps.doctors.models import DoctorProfile
+from apps.imaging.access import get_authorized_image_for_user
 from apps.imaging.models import MedicalImage
 from apps.imaging.services import handle_image_upload
+from apps.imaging.storage import S3StorageService
 from apps.medical_records.models import MedicalRecord
 from apps.notifications.tasks import send_email_notification
 from apps.patients.models import PatientProfile
@@ -258,6 +260,27 @@ def upload_image(request: HttpRequest):
     else:
         messages.error(request, "Invalid upload")
     return redirect("portal-dashboard")
+
+
+@login_required
+def download_image(request: HttpRequest, image_id: str):
+    image = get_authorized_image_for_user(request.user, image_id)
+    if not image:
+        messages.error(request, "Image not found")
+        return redirect("portal-dashboard")
+
+    storage = S3StorageService()
+    log_action(request.user, "image_download", request, resource_id=str(image.id))
+
+    if storage.use_s3:
+        return HttpResponseRedirect(storage.presigned_url(image.s3_key))
+
+    return FileResponse(
+        storage.open_file(image.s3_key),
+        content_type=image.content_type,
+        as_attachment=True,
+        filename=image.file_name,
+    )
 
 
 @login_required

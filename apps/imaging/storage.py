@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from io import BytesIO
 from pathlib import Path
 
 import boto3
@@ -55,6 +56,9 @@ class S3StorageService:
         target.write_bytes(file_obj.read())
         return key
 
+    def local_path(self, key: str) -> Path:
+        return self.local_root / key.replace("/", "_")
+
     def download(self, key: str) -> bytes:
         if self.use_s3:
             try:
@@ -64,7 +68,7 @@ class S3StorageService:
                 raise StorageError(str(exc)) from exc
         if Path(key).exists():
             return Path(key).read_bytes()
-        target = self.local_root / key.replace("/", "_")
+        target = self.local_path(key)
         return target.read_bytes()
 
     def presigned_url(self, key: str, expires: int = 3600) -> str:
@@ -75,3 +79,11 @@ class S3StorageService:
             Params={"Bucket": self.bucket, "Key": key},
             ExpiresIn=expires,
         )
+
+    def open_file(self, key: str):
+        if self.use_s3:
+            return BytesIO(self.download(key))
+        path = self.local_path(key)
+        if path.exists():
+            return path.open("rb")
+        return BytesIO(self.download(key))

@@ -9,6 +9,7 @@ from apps.portal.views import (
     create_medical_record,
     create_report,
     dashboard,
+    download_image,
     download_report,
     home,
     login_view,
@@ -24,6 +25,7 @@ urlpatterns = [
     path("logout", logout_view, name="portal-logout"),
     path("register", register_view, name="portal-register"),
     path("dashboard", dashboard, name="portal-dashboard"),
+    path("dashboard/images/<uuid:image_id>/download", download_image, name="portal-download-image"),
     path("dashboard/appointments/book", book_appointment, name="portal-book-appointment"),
     path(
         "dashboard/appointments/<uuid:appointment_id>/cancel",

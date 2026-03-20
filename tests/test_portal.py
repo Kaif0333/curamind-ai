@@ -1,4 +1,5 @@
 import base64
+from io import BytesIO
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -9,6 +10,7 @@ from apps.appointments.models import Appointment
 from apps.authentication.models import User
 from apps.doctors.models import DoctorProfile
 from apps.imaging.models import MedicalImage
+from apps.imaging.storage import S3StorageService
 from apps.medical_records.models import MedicalRecord
 from apps.patients.models import PatientProfile
 from apps.reports.models import Report
@@ -114,3 +116,38 @@ def test_patient_portal_can_cancel_appointment_and_download_approved_report():
     download_response = client.get(reverse("portal-download-report", args=[report.id]))
     assert download_response.status_code == 200
     assert b"Portal approved report" in download_response.content
+
+
+@pytest.mark.django_db
+def test_patient_portal_can_download_own_image():
+    patient_user = User.objects.create_user(
+        email="portal-patient3@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+    patient_profile = PatientProfile.objects.create(user=patient_user)
+
+    png_bytes = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lE"
+        "QVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+    )
+    storage = S3StorageService()
+    key = storage.build_key("portal-private-test.png")
+    storage.upload(BytesIO(png_bytes), key)
+    image = MedicalImage.objects.create(
+        patient=patient_profile,
+        uploaded_by=patient_user,
+        file_name="portal-private-test.png",
+        s3_key=key,
+        modality="X-Ray",
+        content_type="image/png",
+        file_size=len(png_bytes),
+        metadata={},
+    )
+
+    client = Client()
+    client.force_login(patient_user)
+    response = client.get(reverse("portal-download-image", args=[image.id]))
+
+    assert response.status_code == 200
+    assert b"".join(response.streaming_content) == png_bytes

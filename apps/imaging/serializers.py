@@ -1,7 +1,7 @@
+from django.urls import reverse
 from rest_framework import serializers
 
 from apps.imaging.models import MedicalImage
-from apps.imaging.storage import S3StorageService
 
 
 class MedicalImageSerializer(serializers.ModelSerializer):
@@ -14,7 +14,6 @@ class MedicalImageSerializer(serializers.ModelSerializer):
             "patient",
             "uploaded_by",
             "file_name",
-            "s3_key",
             "modality",
             "content_type",
             "file_size",
@@ -26,5 +25,8 @@ class MedicalImageSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "uploaded_at", "status", "download_url")
 
     def get_download_url(self, obj: MedicalImage) -> str:
-        storage = S3StorageService()
-        return storage.presigned_url(obj.s3_key)
+        path = reverse("image-download", kwargs={"image_id": obj.id})
+        request = self.context.get("request")
+        if request is None:
+            return path
+        return request.build_absolute_uri(path)
