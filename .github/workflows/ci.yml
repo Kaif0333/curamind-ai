@@ -31,7 +31,6 @@ jobs:
       - name: Tests
         env:
           DJANGO_SETTINGS_MODULE: curamind_core.settings
-          DJANGO_ENV: dev
-          DATABASE_URL: sqlite:///test.db
+          DJANGO_ENV: test
         run: |
           pytest
