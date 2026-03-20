@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 
 from django.core.cache import cache
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.response import Response
@@ -19,10 +20,14 @@ from apps.authentication.mfa import (
 )
 from apps.authentication.models import LoginAttempt, User
 from apps.authentication.serializers import (
+    AuthTokenResponseSerializer,
     LoginSerializer,
     MFACodeSerializer,
     MFADisableSerializer,
+    MFALoginChallengeSerializer,
     MFALoginVerifySerializer,
+    MFASetupResponseSerializer,
+    MFAStatusSerializer,
     RegisterSerializer,
     UserSerializer,
 )
@@ -37,7 +42,9 @@ def _attempt_key(email: str, ip: str | None) -> str:
 
 class RegisterView(APIView):
     permission_classes = ()
+    serializer_class = RegisterSerializer
 
+    @extend_schema(request=RegisterSerializer, responses=UserSerializer)
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -50,6 +57,15 @@ class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
     permission_classes = ()
 
+    @extend_schema(
+        request=LoginSerializer,
+        responses={
+            200: AuthTokenResponseSerializer,
+            202: MFALoginChallengeSerializer,
+            400: OpenApiResponse(description="Invalid login request."),
+            429: OpenApiResponse(description="Too many login attempts."),
+        },
+    )
     def post(self, request, *args, **kwargs):
         email = request.data.get("email", "")
         ip_address = request.META.get("REMOTE_ADDR")
@@ -106,13 +122,18 @@ class RefreshView(TokenRefreshView):
 
 
 class MeView(APIView):
+    serializer_class = UserSerializer
+
+    @extend_schema(responses=UserSerializer)
     def get(self, request):
         return Response(UserSerializer(request.user).data, status=status.HTTP_200_OK)
 
 
 class MFASetupView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = MFASetupResponseSerializer
 
+    @extend_schema(request=None, responses=MFASetupResponseSerializer)
     def post(self, request):
         user = request.user
         if user.mfa_enabled and user.mfa_secret:
@@ -144,7 +165,9 @@ class MFASetupView(APIView):
 
 class MFAVerifySetupView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = MFACodeSerializer
 
+    @extend_schema(request=MFACodeSerializer, responses=MFAStatusSerializer)
     def post(self, request):
         serializer = MFACodeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -170,7 +193,9 @@ class MFAVerifySetupView(APIView):
 
 class MFADisableView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = MFADisableSerializer
 
+    @extend_schema(request=MFADisableSerializer, responses=MFAStatusSerializer)
     def post(self, request):
         serializer = MFADisableSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -194,7 +219,9 @@ class MFADisableView(APIView):
 
 class MFALoginVerifyView(APIView):
     permission_classes = ()
+    serializer_class = MFALoginVerifySerializer
 
+    @extend_schema(request=MFALoginVerifySerializer, responses=AuthTokenResponseSerializer)
     def post(self, request):
         serializer = MFALoginVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

@@ -1,5 +1,6 @@
 from django.http import HttpResponse
 from django.utils import timezone
+from drf_spectacular.utils import OpenApiResponse, OpenApiTypes, extend_schema
 from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.response import Response
@@ -45,6 +46,9 @@ def _get_report_for_user(user, report_id: str) -> Report | None:
 
 
 class ReportListView(APIView):
+    serializer_class = ReportSerializer
+
+    @extend_schema(responses=ReportSerializer(many=True))
     def get(self, request):
         user = request.user
         reports = _get_reports_for_user(user).select_related(
@@ -58,7 +62,9 @@ class ReportListView(APIView):
 
 class ReportCreateView(APIView):
     permission_classes = [IsDoctor]
+    serializer_class = ReportCreateSerializer
 
+    @extend_schema(request=ReportCreateSerializer, responses=ReportSerializer)
     def post(self, request):
         serializer = ReportCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -95,7 +101,9 @@ class ReportCreateView(APIView):
 
 class ReportApproveView(APIView):
     permission_classes = [IsRadiologist]
+    serializer_class = ReportApproveSerializer
 
+    @extend_schema(request=ReportApproveSerializer, responses=ReportSerializer)
     def patch(self, request, report_id: str):
         report = Report.objects.filter(id=report_id).first()
         if not report:
@@ -121,6 +129,14 @@ class ReportApproveView(APIView):
 
 
 class ReportDownloadView(APIView):
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(
+                response=OpenApiTypes.STR,
+                description="Plain-text report export.",
+            )
+        }
+    )
     def get(self, request, report_id: str):
         report = _get_report_for_user(request.user, report_id)
         if not report:

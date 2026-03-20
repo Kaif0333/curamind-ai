@@ -155,6 +155,11 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "CuraMind AI API",
     "DESCRIPTION": "HIPAA-compliant Telehealth & AI Diagnostic Platform",
     "VERSION": "1.0.0",
+    "ENUM_NAME_OVERRIDES": {
+        "AppointmentStatusEnum": "apps.appointments.models.Appointment.Status",
+        "ReportStatusEnum": "apps.reports.models.Report.Status",
+        "ImagingStatusEnum": "apps.imaging.models.MedicalImage.Status",
+    },
 }
 
 SIMPLE_JWT = {

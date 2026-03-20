@@ -1,13 +1,21 @@
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.ai_engine.mongo import get_ai_result_by_image, get_processing_logs_by_image
+from apps.ai_engine.serializers import AIProcessingLogSerializer, AIResultSerializer
 from apps.audit_logs.utils import log_action
 from apps.imaging.access import get_authorized_image_for_user
 
 
 class AIResultView(APIView):
+    serializer_class = AIResultSerializer
+
+    @extend_schema(
+        parameters=[OpenApiParameter(name="image_id", required=True, type=str)],
+        responses=AIResultSerializer,
+    )
     def get(self, request):
         image_id = request.query_params.get("image_id")
         if not image_id:
@@ -26,6 +34,12 @@ class AIResultView(APIView):
 
 
 class AIProcessingLogsView(APIView):
+    serializer_class = AIProcessingLogSerializer
+
+    @extend_schema(
+        parameters=[OpenApiParameter(name="image_id", required=True, type=str)],
+        responses=AIProcessingLogSerializer(many=True),
+    )
     def get(self, request):
         image_id = request.query_params.get("image_id")
         if not image_id:

@@ -111,3 +111,28 @@ class MFADisableSerializer(MFACodeSerializer):
 
 class MFALoginVerifySerializer(MFACodeSerializer):
     challenge_token = serializers.CharField()
+
+
+class MFASetupResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField(required=False)
+    secret = serializers.CharField()
+    provisioning_uri = serializers.CharField()
+    mfa_enabled = serializers.BooleanField()
+
+
+class MFAStatusSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    mfa_enabled = serializers.BooleanField()
+
+
+class MFALoginChallengeSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    mfa_required = serializers.BooleanField()
+    challenge_token = serializers.CharField()
+    user = UserSerializer()
+
+
+class AuthTokenResponseSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+    access = serializers.CharField()
+    user = UserSerializer()

@@ -261,3 +261,44 @@ def test_patient_can_download_own_image_but_other_patient_cannot():
     assert owner_response.status_code == 200
     assert b"".join(owner_response.streaming_content) == png_bytes
     assert other_response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_admin_cannot_download_patient_image():
+    owner_user = User.objects.create_user(
+        email="patient-owner-admin-test@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+    owner_profile = PatientProfile.objects.create(user=owner_user)
+    admin_user = User.objects.create_user(
+        email="admin-no-image@example.com",
+        password="StrongPass123",
+        role=User.Role.ADMIN,
+        is_staff=True,
+    )
+
+    png_bytes = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lE"
+        "QVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+    )
+    storage = S3StorageService()
+    key = storage.build_key("admin-private-test.png")
+    storage.upload(BytesIO(png_bytes), key)
+
+    image = MedicalImage.objects.create(
+        patient=owner_profile,
+        uploaded_by=owner_user,
+        file_name="admin-private-test.png",
+        s3_key=key,
+        modality="X-Ray",
+        content_type="image/png",
+        file_size=len(png_bytes),
+        metadata={},
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=admin_user)
+    response = client.get(f"/imaging/{image.id}/download")
+
+    assert response.status_code == 404

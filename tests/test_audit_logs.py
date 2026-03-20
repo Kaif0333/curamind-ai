@@ -55,3 +55,19 @@ def test_admin_dashboard_can_filter_audit_logs():
     assert response.status_code == 200
     assert b"login" in response.content
     assert b"record_view" not in response.content
+
+
+@pytest.mark.django_db
+def test_invalid_audit_log_limit_returns_400():
+    admin_user = User.objects.create_user(
+        email="admin-invalid-limit@example.com",
+        password="StrongPass123",
+        role=User.Role.ADMIN,
+        is_staff=True,
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=admin_user)
+    response = client.get("/audit-logs", {"limit": "oops"})
+
+    assert response.status_code == 400

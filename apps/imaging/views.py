@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.http import FileResponse, HttpResponseRedirect
+from drf_spectacular.utils import OpenApiResponse, OpenApiTypes, extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -10,7 +11,7 @@ from rest_framework.views import APIView
 from apps.audit_logs.utils import log_action
 from apps.authentication.permissions import IsPatient
 from apps.imaging.access import get_authorized_image_for_user
-from apps.imaging.serializers import MedicalImageSerializer
+from apps.imaging.serializers import ImageUploadRequestSerializer, MedicalImageSerializer
 from apps.imaging.services import handle_image_upload
 from apps.imaging.storage import S3StorageService
 
@@ -18,7 +19,9 @@ from apps.imaging.storage import S3StorageService
 class ImageUploadView(APIView):
     parser_classes = [MultiPartParser, FormParser]
     permission_classes = [IsPatient]
+    serializer_class = ImageUploadRequestSerializer
 
+    @extend_schema(request=ImageUploadRequestSerializer, responses=MedicalImageSerializer)
     def post(self, request):
         upload = request.FILES.get("file")
         if not upload:
@@ -39,6 +42,14 @@ class ImageUploadView(APIView):
 class ImageDownloadView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(
+                response=OpenApiTypes.BINARY,
+                description="Protected medical image download.",
+            )
+        }
+    )
     def get(self, request, image_id: str):
         image = get_authorized_image_for_user(request.user, image_id)
         if not image:

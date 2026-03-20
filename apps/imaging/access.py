@@ -27,7 +27,7 @@ def get_authorized_image_for_user(user, image_id: str) -> MedicalImage | None:
         )
         return image if is_assigned_patient else None
 
-    if user.role == User.Role.NURSE:
-        return None
+    if user.role == User.Role.RADIOLOGIST:
+        return image
 
-    return image
+    return None

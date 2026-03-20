@@ -19,3 +19,10 @@ class AuditLogSerializer(serializers.ModelSerializer):
             "metadata",
         )
         read_only_fields = fields
+
+
+class AuditLogListQuerySerializer(serializers.Serializer):
+    action = serializers.CharField(required=False, allow_blank=False)
+    email = serializers.CharField(required=False, allow_blank=False)
+    resource_id = serializers.CharField(required=False, allow_blank=False)
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=200, default=100)

@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,13 +17,16 @@ from apps.notifications.tasks import send_email_notification
 
 
 class AppointmentCreateView(APIView):
+    serializer_class = AppointmentSerializer
+
+    @extend_schema(responses=AppointmentSerializer(many=True))
     def get(self, request):
         user = request.user
         if user.role == User.Role.PATIENT:
             appointments = Appointment.objects.filter(patient=user.patient_profile)
         elif user.role == User.Role.DOCTOR:
             appointments = Appointment.objects.filter(doctor=user.doctor_profile)
-        elif user.role in {User.Role.RADIOLOGIST, User.Role.ADMIN}:
+        elif user.role == User.Role.ADMIN:
             appointments = Appointment.objects.all()
         else:
             return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
@@ -34,6 +38,7 @@ class AppointmentCreateView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(request=AppointmentCreateSerializer, responses=AppointmentSerializer)
     def post(self, request):
         if request.user.role != User.Role.PATIENT:
             return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
@@ -63,7 +68,9 @@ class AppointmentCreateView(APIView):
 
 class AppointmentStatusUpdateView(APIView):
     permission_classes = [IsDoctor]
+    serializer_class = AppointmentStatusSerializer
 
+    @extend_schema(request=AppointmentStatusSerializer, responses=AppointmentSerializer)
     def patch(self, request, appointment_id: str):
         appointment = Appointment.objects.filter(
             id=appointment_id, doctor=request.user.doctor_profile
@@ -84,7 +91,9 @@ class AppointmentStatusUpdateView(APIView):
 
 class AppointmentCancelView(APIView):
     permission_classes = [IsPatient]
+    serializer_class = AppointmentSerializer
 
+    @extend_schema(responses=AppointmentSerializer)
     def patch(self, request, appointment_id: str):
         appointment = Appointment.objects.filter(
             id=appointment_id,

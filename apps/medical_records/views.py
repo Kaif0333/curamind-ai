@@ -1,4 +1,5 @@
 from apps.appointments.models import Appointment
+from drf_spectacular.utils import extend_schema
 from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.response import Response
@@ -31,14 +32,16 @@ def _get_record_for_user(user, record_id: str) -> MedicalRecord | None:
         return None
     if user.role == User.Role.DOCTOR and record.doctor.user != user:
         return None
-    if user.role == User.Role.NURSE:
+    if user.role not in {User.Role.PATIENT, User.Role.DOCTOR}:
         return None
     return record
 
 
 class PatientRecordsView(APIView):
     permission_classes = [IsPatient]
+    serializer_class = MedicalRecordSerializer
 
+    @extend_schema(responses=MedicalRecordSerializer(many=True))
     def get(self, request):
         records = (
             MedicalRecord.objects.filter(patient=request.user.patient_profile)
@@ -51,7 +54,9 @@ class PatientRecordsView(APIView):
 
 class MedicalRecordCreateView(APIView):
     permission_classes = [IsDoctor]
+    serializer_class = MedicalRecordCreateSerializer
 
+    @extend_schema(request=MedicalRecordCreateSerializer, responses=MedicalRecordSerializer)
     def post(self, request):
         serializer = MedicalRecordCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -82,6 +87,9 @@ class MedicalRecordCreateView(APIView):
 
 
 class RecordDiagnosesView(APIView):
+    serializer_class = DiagnosisSerializer
+
+    @extend_schema(responses=DiagnosisSerializer(many=True))
     def get(self, request, record_id: str):
         record = _get_record_for_user(request.user, record_id)
         if not record:
@@ -93,6 +101,7 @@ class RecordDiagnosesView(APIView):
         log_action(request.user, "diagnosis_view", request, resource_id=record_id)
         return Response(DiagnosisSerializer(diagnoses, many=True).data, status=status.HTTP_200_OK)
 
+    @extend_schema(request=DiagnosisCreateSerializer, responses=DiagnosisSerializer)
     def post(self, request, record_id: str):
         if request.user.role != User.Role.DOCTOR:
             return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
@@ -114,6 +123,9 @@ class RecordDiagnosesView(APIView):
 
 
 class RecordPrescriptionsView(APIView):
+    serializer_class = PrescriptionSerializer
+
+    @extend_schema(responses=PrescriptionSerializer(many=True))
     def get(self, request, record_id: str):
         record = _get_record_for_user(request.user, record_id)
         if not record:
@@ -128,6 +140,7 @@ class RecordPrescriptionsView(APIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(request=PrescriptionCreateSerializer, responses=PrescriptionSerializer)
     def post(self, request, record_id: str):
         if request.user.role != User.Role.DOCTOR:
             return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)

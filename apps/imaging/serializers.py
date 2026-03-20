@@ -4,6 +4,11 @@ from rest_framework import serializers
 from apps.imaging.models import MedicalImage
 
 
+class ImageUploadRequestSerializer(serializers.Serializer):
+    file = serializers.FileField()
+    modality = serializers.CharField(required=False, allow_blank=True)
+
+
 class MedicalImageSerializer(serializers.ModelSerializer):
     download_url = serializers.SerializerMethodField()
 

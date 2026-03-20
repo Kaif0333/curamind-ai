@@ -133,3 +133,19 @@ def test_patient_can_list_and_cancel_own_appointment():
 
     appointment.refresh_from_db()
     assert appointment.status == Appointment.Status.CANCELLED
+
+
+@pytest.mark.django_db
+def test_radiologist_cannot_list_appointments():
+    radiologist_user = User.objects.create_user(
+        email="radiologist-no-appts@example.com",
+        password="StrongPass123",
+        role=User.Role.RADIOLOGIST,
+    )
+    DoctorProfile.objects.create(user=radiologist_user, specialty="Radiology")
+
+    client = APIClient()
+    client.force_authenticate(user=radiologist_user)
+    response = client.get("/appointments")
+
+    assert response.status_code == 403
