@@ -28,9 +28,17 @@ jobs:
           flake8 apps backend tests scripts
           mypy apps backend tests scripts
 
+      - name: Django Checks
+        env:
+          DJANGO_SETTINGS_MODULE: curamind_core.settings
+          DJANGO_ENV: test
+        run: |
+          python backend/django_core/manage.py check --settings=curamind_core.settings.test
+          python backend/django_core/manage.py spectacular --file schema.yml --validate --settings=curamind_core.settings.test
+
       - name: Tests
         env:
           DJANGO_SETTINGS_MODULE: curamind_core.settings
           DJANGO_ENV: test
         run: |
-          pytest
+          pytest --cov --cov-report=term --cov-report=xml --cov-fail-under=90

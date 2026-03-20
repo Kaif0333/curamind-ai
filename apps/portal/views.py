@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.http import FileResponse, HttpRequest, HttpResponse, HttpResponseRedirect
 from django.db.models import Q
 from django.shortcuts import redirect, render
@@ -44,6 +45,15 @@ from apps.reports.models import Report
 
 PENDING_PORTAL_MFA_USER_ID = "pending_portal_mfa_user_id"
 PENDING_PORTAL_MFA_BACKEND = "pending_portal_mfa_backend"
+
+
+def _get_pending_portal_mfa_user(pending_user_id: str | None) -> User | None:
+    if not pending_user_id:
+        return None
+    try:
+        return User.objects.filter(id=pending_user_id).first()
+    except (ValidationError, ValueError, TypeError):
+        return None
 
 
 def home(request: HttpRequest):
@@ -112,7 +122,7 @@ def mfa_login_view(request: HttpRequest):
 
     form = MFALoginForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        user = User.objects.filter(id=pending_user_id).first()
+        user = _get_pending_portal_mfa_user(pending_user_id)
         if not user:
             request.session.pop(PENDING_PORTAL_MFA_USER_ID, None)
             request.session.pop(PENDING_PORTAL_MFA_BACKEND, None)
@@ -146,9 +156,14 @@ def mfa_login_view(request: HttpRequest):
         return redirect("portal-dashboard")
 
     email = ""
-    user = User.objects.filter(id=pending_user_id).first()
+    user = _get_pending_portal_mfa_user(pending_user_id)
     if user:
         email = user.email
+    else:
+        request.session.pop(PENDING_PORTAL_MFA_USER_ID, None)
+        request.session.pop(PENDING_PORTAL_MFA_BACKEND, None)
+        messages.error(request, "MFA challenge expired. Please sign in again.")
+        return redirect("portal-login")
     return render(request, "portal/login_mfa.html", {"form": form, "email": email})
 
 

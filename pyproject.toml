@@ -9,3 +9,22 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
 exclude = "(^|[\\\\/])migrations([\\\\/]|$)"
+
+[tool.coverage.run]
+source = ["apps", "backend"]
+omit = [
+    "*/migrations/*",
+    "*/tests.py",
+    "*/__init__.py",
+    "*/apps.py",
+    "*/urls.py",
+    "*/admin.py",
+    "*/wsgi.py",
+    "*/asgi.py",
+    "backend/django_core/curamind_core/settings/*",
+]
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = true
+precision = 2
