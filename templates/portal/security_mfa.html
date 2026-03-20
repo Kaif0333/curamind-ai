@@ -1,0 +1,65 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Security Settings | CuraMind AI{% endblock %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <div>
+        <span class="eyebrow">Account security</span>
+        <h1>Manage multi-factor authentication.</h1>
+        <p>Protect your healthcare workspace with a time-based one-time password on every login.</p>
+    </div>
+    <div class="summary-row">
+        <div class="summary-card"><span>MFA</span><strong>{% if request.user.mfa_enabled %}Enabled{% else %}Disabled{% endif %}</strong></div>
+    </div>
+</section>
+
+<section class="dashboard-grid">
+    <article class="panel">
+        <h2>Setup</h2>
+        {% if request.user.mfa_enabled %}
+            <p class="muted-text">MFA is currently enabled for your account.</p>
+        {% else %}
+            <form method="post" class="form-stack">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="start">
+                <button type="submit" class="primary-button">Generate MFA Secret</button>
+            </form>
+            {% if request.user.mfa_secret %}
+                <p class="muted-text">Authenticator secret</p>
+                <code class="code-block">{{ request.user.mfa_secret }}</code>
+                <p class="muted-text">Provisioning URI</p>
+                <code class="code-block">{{ provisioning_uri }}</code>
+            {% endif %}
+        {% endif %}
+    </article>
+
+    <article class="panel">
+        <h2>Verify</h2>
+        {% if request.user.mfa_secret and not request.user.mfa_enabled %}
+            <form method="post" class="form-stack">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="verify">
+                {{ verify_form.as_p }}
+                <button type="submit" class="secondary-button">Enable MFA</button>
+            </form>
+        {% else %}
+            <p class="muted-text">Generate a secret first, then verify a code from your authenticator app.</p>
+        {% endif %}
+    </article>
+
+    <article class="panel span-2">
+        <h2>Disable</h2>
+        {% if request.user.mfa_enabled %}
+            <form method="post" class="form-stack">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="disable">
+                {{ disable_form.as_p }}
+                <button type="submit" class="secondary-button">Disable MFA</button>
+            </form>
+        {% else %}
+            <p class="muted-text">MFA is not enabled right now.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

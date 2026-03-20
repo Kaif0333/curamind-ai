@@ -3,6 +3,10 @@
 ## Django REST Endpoints
 - `POST /auth/register`
 - `POST /auth/login`
+- `POST /auth/login/mfa-verify`
+- `POST /auth/mfa/setup`
+- `POST /auth/mfa/verify`
+- `POST /auth/mfa/disable`
 - `POST /auth/refresh`
 - `GET /appointments`
 - `POST /appointments`
@@ -38,3 +42,4 @@
 - `GET /audit-logs` is restricted to admins.
 - Medical image downloads are protected and no longer rely on public media URLs.
 - DICOM uploads are de-identified before they are persisted.
+- MFA is available through both the API and the portal security page.

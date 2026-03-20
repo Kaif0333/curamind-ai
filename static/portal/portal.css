@@ -295,6 +295,17 @@ h3 {
     color: var(--ink-soft);
 }
 
+.code-block {
+    display: block;
+    overflow-wrap: anywhere;
+    background: rgba(11, 56, 74, 0.08);
+    border: 1px solid rgba(11, 56, 74, 0.12);
+    border-radius: 1rem;
+    padding: 0.9rem 1rem;
+    font-size: 0.95rem;
+    color: var(--ink);
+}
+
 .metric-card strong,
 .summary-card strong {
     display: block;

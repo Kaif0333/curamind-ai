@@ -32,6 +32,8 @@ docker compose up -d --build
 - `MONGO_URI=mongodb://...`
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET_NAME`
 - `AI_SERVICE_URL=http://fastapi:8001`
+- `MFA_ISSUER=CuraMind AI`
+- `MFA_CHALLENGE_TTL=300`
 
 ## Security Notes
 - Enforce HTTPS in production

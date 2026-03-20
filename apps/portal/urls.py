@@ -14,6 +14,8 @@ from apps.portal.views import (
     home,
     login_view,
     logout_view,
+    mfa_login_view,
+    mfa_settings_view,
     register_view,
     update_appointment_status,
     upload_image,
@@ -22,9 +24,11 @@ from apps.portal.views import (
 urlpatterns = [
     path("", home, name="portal-home"),
     path("login", login_view, name="portal-login"),
+    path("login/mfa", mfa_login_view, name="portal-mfa-login"),
     path("logout", logout_view, name="portal-logout"),
     path("register", register_view, name="portal-register"),
     path("dashboard", dashboard, name="portal-dashboard"),
+    path("dashboard/security/mfa", mfa_settings_view, name="portal-mfa-settings"),
     path("dashboard/images/<uuid:image_id>/download", download_image, name="portal-download-image"),
     path("dashboard/appointments/book", book_appointment, name="portal-book-appointment"),
     path(

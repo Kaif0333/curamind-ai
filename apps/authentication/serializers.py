@@ -7,6 +7,7 @@ from django.contrib.auth import authenticate
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from apps.authentication.mfa import normalize_mfa_code
 from apps.authentication.models import User
 
 
@@ -37,7 +38,7 @@ def _self_assignable_roles() -> set[str]:
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ("id", "email", "first_name", "last_name", "role")
+        fields = ("id", "email", "first_name", "last_name", "role", "mfa_enabled")
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -83,6 +84,30 @@ class LoginSerializer(TokenObtainPairSerializer):
         user = authenticate(**credentials)
         if user is None:
             raise serializers.ValidationError("Invalid credentials")
-        data = super().validate(attrs)
-        data["user"] = UserSerializer(user).data
+        self.user = user
+        data = {"user": UserSerializer(user).data}
+        if not user.mfa_enabled:
+            refresh = self.get_token(user)
+            data["refresh"] = str(refresh)
+            data["access"] = str(refresh.access_token)
+            return data
+        data["mfa_required"] = True
         return data
+
+
+class MFACodeSerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=12)
+
+    def validate_code(self, value: str) -> str:
+        normalized = normalize_mfa_code(value)
+        if len(normalized) != 6:
+            raise serializers.ValidationError("Enter a valid 6-digit authentication code.")
+        return normalized
+
+
+class MFADisableSerializer(MFACodeSerializer):
+    password = serializers.CharField(write_only=True)
+
+
+class MFALoginVerifySerializer(MFACodeSerializer):
+    challenge_token = serializers.CharField()

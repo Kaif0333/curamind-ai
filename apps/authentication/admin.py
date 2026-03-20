@@ -7,11 +7,19 @@ from apps.authentication.models import LoginAttempt, User
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     ordering = ("email",)
-    list_display = ("email", "first_name", "last_name", "role", "is_staff", "is_active")
-    list_filter = ("role", "is_staff", "is_active")
+    list_display = (
+        "email",
+        "first_name",
+        "last_name",
+        "role",
+        "mfa_enabled",
+        "is_staff",
+        "is_active",
+    )
+    list_filter = ("role", "mfa_enabled", "is_staff", "is_active")
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Personal Info", {"fields": ("first_name", "last_name", "role")}),
+        ("Personal Info", {"fields": ("first_name", "last_name", "role", "mfa_enabled")}),
         (
             "Permissions",
             {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")},

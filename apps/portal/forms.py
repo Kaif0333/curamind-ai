@@ -24,6 +24,17 @@ class LoginForm(forms.Form):
         )
 
 
+class MFALoginForm(forms.Form):
+    code = forms.CharField(
+        max_length=12, help_text="Enter the 6-digit code from your authenticator."
+    )
+
+
+class MFADisableForm(forms.Form):
+    password = forms.CharField(widget=forms.PasswordInput)
+    code = forms.CharField(max_length=12)
+
+
 class RegisterForm(forms.Form):
     email = forms.EmailField()
     first_name = forms.CharField(required=False)

@@ -42,6 +42,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=150, blank=True)
     last_name = models.CharField(max_length=150, blank=True)
     role = models.CharField(max_length=20, choices=Role.choices)
+    mfa_enabled = models.BooleanField(default=False)
+    mfa_secret = models.CharField(max_length=64, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)

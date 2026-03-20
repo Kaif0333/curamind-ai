@@ -14,6 +14,7 @@ from apps.ai_engine.mongo import get_ai_result_by_image
 from apps.appointments.models import Appointment
 from apps.audit_logs.models import AuditLog
 from apps.audit_logs.utils import log_action
+from apps.authentication.mfa import build_mfa_provisioning_uri, generate_mfa_secret, verify_mfa_code
 from apps.authentication.models import LoginAttempt, User
 from apps.authentication.views import LOGIN_ATTEMPT_TTL, MAX_LOGIN_ATTEMPTS, _attempt_key
 from apps.doctors.models import DoctorProfile
@@ -31,6 +32,8 @@ from apps.portal.forms import (
     DiagnosisCreateForm,
     ImageUploadForm,
     LoginForm,
+    MFADisableForm,
+    MFALoginForm,
     MedicalRecordCreateForm,
     PrescriptionCreateForm,
     RegisterForm,
@@ -38,6 +41,9 @@ from apps.portal.forms import (
     ReportCreateForm,
 )
 from apps.reports.models import Report
+
+PENDING_PORTAL_MFA_USER_ID = "pending_portal_mfa_user_id"
+PENDING_PORTAL_MFA_BACKEND = "pending_portal_mfa_backend"
 
 
 def home(request: HttpRequest):
@@ -62,6 +68,16 @@ def login_view(request: HttpRequest):
         user = form.authenticate_user()
         if user:
             cache.delete(attempt_key)
+            if user.mfa_enabled:
+                request.session[PENDING_PORTAL_MFA_USER_ID] = str(user.id)
+                request.session[PENDING_PORTAL_MFA_BACKEND] = getattr(
+                    user,
+                    "backend",
+                    "django.contrib.auth.backends.ModelBackend",
+                )
+                log_action(user, "login_mfa_challenge", request, resource_id=str(user.id))
+                messages.info(request, "Enter your authentication code to finish signing in.")
+                return redirect("portal-mfa-login")
             login(request, user)
             LoginAttempt.objects.create(
                 user=user,
@@ -85,10 +101,63 @@ def login_view(request: HttpRequest):
     return render(request, "portal/login.html", {"form": form})
 
 
+def mfa_login_view(request: HttpRequest):
+    if request.user.is_authenticated:
+        return redirect("portal-dashboard")
+
+    pending_user_id = request.session.get(PENDING_PORTAL_MFA_USER_ID)
+    if not pending_user_id:
+        messages.error(request, "No pending MFA challenge. Please sign in again.")
+        return redirect("portal-login")
+
+    form = MFALoginForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        user = User.objects.filter(id=pending_user_id).first()
+        if not user:
+            request.session.pop(PENDING_PORTAL_MFA_USER_ID, None)
+            request.session.pop(PENDING_PORTAL_MFA_BACKEND, None)
+            messages.error(request, "MFA challenge expired. Please sign in again.")
+            return redirect("portal-login")
+        if not verify_mfa_code(user, form.cleaned_data["code"]):
+            LoginAttempt.objects.create(
+                user=user,
+                email=user.email,
+                ip_address=request.META.get("REMOTE_ADDR"),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+                success=False,
+            )
+            messages.error(request, "Invalid authentication code.")
+            return render(request, "portal/login_mfa.html", {"form": form, "email": user.email})
+
+        request.session.pop(PENDING_PORTAL_MFA_USER_ID, None)
+        backend = request.session.pop(
+            PENDING_PORTAL_MFA_BACKEND,
+            "django.contrib.auth.backends.ModelBackend",
+        )
+        login(request, user, backend=backend)
+        LoginAttempt.objects.create(
+            user=user,
+            email=user.email,
+            ip_address=request.META.get("REMOTE_ADDR"),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            success=True,
+        )
+        log_action(user, "login", request, resource_id=str(user.id))
+        return redirect("portal-dashboard")
+
+    email = ""
+    user = User.objects.filter(id=pending_user_id).first()
+    if user:
+        email = user.email
+    return render(request, "portal/login_mfa.html", {"form": form, "email": email})
+
+
 def logout_view(request: HttpRequest):
     if request.user.is_authenticated:
         log_action(request.user, "logout", request, resource_id=str(request.user.id))
     logout(request)
+    request.session.pop(PENDING_PORTAL_MFA_USER_ID, None)
+    request.session.pop(PENDING_PORTAL_MFA_BACKEND, None)
     return redirect("portal-home")
 
 
@@ -119,6 +188,71 @@ def register_view(request: HttpRequest):
 
 def _render_dashboard(request: HttpRequest, template: str, context: dict):
     return render(request, template, context)
+
+
+@login_required
+def mfa_settings_view(request: HttpRequest):
+    user = request.user
+    provisioning_uri = build_mfa_provisioning_uri(user, user.mfa_secret) if user.mfa_secret else ""
+    verify_form = MFALoginForm()
+    disable_form = MFADisableForm()
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        if action == "start":
+            user.mfa_secret = generate_mfa_secret()
+            user.mfa_enabled = False
+            user.save(update_fields=["mfa_secret", "mfa_enabled"])
+            provisioning_uri = build_mfa_provisioning_uri(user, user.mfa_secret)
+            log_action(user, "mfa_setup_started", request, resource_id=str(user.id))
+            messages.success(
+                request, "MFA setup started. Add the secret to your authenticator and verify."
+            )
+            return render(
+                request,
+                "portal/security_mfa.html",
+                {
+                    "provisioning_uri": provisioning_uri,
+                    "verify_form": verify_form,
+                    "disable_form": disable_form,
+                },
+            )
+
+        if action == "verify":
+            verify_form = MFALoginForm(request.POST)
+            if verify_form.is_valid() and verify_mfa_code(user, verify_form.cleaned_data["code"]):
+                user.mfa_enabled = True
+                user.save(update_fields=["mfa_enabled"])
+                log_action(user, "mfa_enabled", request, resource_id=str(user.id))
+                messages.success(request, "Multi-factor authentication enabled.")
+                return redirect("portal-mfa-settings")
+            messages.error(request, "Unable to verify the authentication code.")
+
+        if action == "disable":
+            disable_form = MFADisableForm(request.POST)
+            if not disable_form.is_valid():
+                messages.error(request, "Enter your password and authentication code.")
+            elif not user.check_password(disable_form.cleaned_data["password"]):
+                messages.error(request, "Invalid password.")
+            elif user.mfa_enabled and not verify_mfa_code(user, disable_form.cleaned_data["code"]):
+                messages.error(request, "Invalid authentication code.")
+            else:
+                user.mfa_enabled = False
+                user.mfa_secret = ""
+                user.save(update_fields=["mfa_enabled", "mfa_secret"])
+                log_action(user, "mfa_disabled", request, resource_id=str(user.id))
+                messages.success(request, "Multi-factor authentication disabled.")
+                return redirect("portal-mfa-settings")
+
+    return render(
+        request,
+        "portal/security_mfa.html",
+        {
+            "provisioning_uri": provisioning_uri,
+            "verify_form": verify_form,
+            "disable_form": disable_form,
+        },
+    )
 
 
 @login_required

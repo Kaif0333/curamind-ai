@@ -1,0 +1,26 @@
+{% extends "portal/base.html" %}
+
+{% block title %}MFA Verification | CuraMind AI{% endblock %}
+{% block page_class %}auth-page{% endblock %}
+
+{% block content %}
+<section class="auth-layout">
+    <div class="auth-intro">
+        <span class="eyebrow">Second factor</span>
+        <h1>Finish signing in securely.</h1>
+        <p>
+            Enter the 6-digit code from your authenticator app for
+            {% if email %}<strong>{{ email }}</strong>{% else %}your account{% endif %}.
+        </p>
+    </div>
+    <div class="panel auth-panel">
+        <h2>Verify MFA</h2>
+        <form method="post" class="form-stack">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="primary-button">Verify and Sign In</button>
+        </form>
+        <p class="panel-note"><a href="{% url 'portal-login' %}">Back to login</a></p>
+    </div>
+</section>
+{% endblock %}

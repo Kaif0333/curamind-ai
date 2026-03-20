@@ -12,6 +12,7 @@ CuraMind AI is a HIPAA-aligned Telehealth & AI Diagnostic Platform featuring a D
 - **S3**: Secure image storage with signed URLs
 
 ## Security Highlights
+- TOTP-based MFA setup and login verification for API and portal accounts
 - DICOM uploads are de-identified before storage
 - Medical image downloads are served through authenticated application endpoints
 - Audit events are captured for image and report downloads
