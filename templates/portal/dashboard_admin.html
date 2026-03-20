@@ -24,6 +24,30 @@
             <h2>Recent audit events</h2>
             <span>{{ recent_audit_logs|length }} latest records</span>
         </div>
+        <form method="get" action="{% url 'portal-dashboard' %}" class="inline-form">
+            <input
+                type="text"
+                name="action"
+                placeholder="Filter by action"
+                value="{{ audit_filters.action }}"
+            >
+            <input
+                type="text"
+                name="email"
+                placeholder="Filter by user email"
+                value="{{ audit_filters.email }}"
+            >
+            <input
+                type="text"
+                name="resource_id"
+                placeholder="Filter by resource id"
+                value="{{ audit_filters.resource_id }}"
+            >
+            <button type="submit" class="secondary-button">Apply filters</button>
+        </form>
+        <p class="muted-text">
+            API access for the same data is available at <code>/audit-logs</code>.
+        </p>
         {% if recent_audit_logs %}
             <div class="table-wrap">
                 <table>

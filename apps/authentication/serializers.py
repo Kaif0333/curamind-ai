@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from typing import cast
 
 from django.contrib.auth import authenticate
 from rest_framework import serializers
@@ -12,7 +13,7 @@ from apps.authentication.models import User
 def _self_assignable_roles() -> set[str]:
     allow_roles = os.getenv("ALLOW_SELF_ASSIGN_ROLES", "false").lower() == "true"
     if not allow_roles:
-        return {User.Role.PATIENT}
+        return {cast(str, User.Role.PATIENT)}
 
     configured_roles = {
         role.strip()
@@ -20,17 +21,17 @@ def _self_assignable_roles() -> set[str]:
             "SELF_ASSIGNABLE_ROLES",
             ",".join(
                 [
-                    User.Role.PATIENT,
-                    User.Role.DOCTOR,
-                    User.Role.RADIOLOGIST,
-                    User.Role.NURSE,
+                    cast(str, User.Role.PATIENT),
+                    cast(str, User.Role.DOCTOR),
+                    cast(str, User.Role.RADIOLOGIST),
+                    cast(str, User.Role.NURSE),
                 ]
             ),
         ).split(",")
         if role.strip()
     }
-    configured_roles.discard(User.Role.ADMIN)
-    return configured_roles or {User.Role.PATIENT}
+    configured_roles.discard(cast(str, User.Role.ADMIN))
+    return configured_roles or {cast(str, User.Role.PATIENT)}
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -49,7 +50,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate_role(self, value: str) -> str:
         if value in _self_assignable_roles():
             return value
-        return User.Role.PATIENT
+        return cast(str, User.Role.PATIENT)
 
     def create(self, validated_data):
         password = validated_data.pop("password")
@@ -68,7 +69,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 class LoginSerializer(TokenObtainPairSerializer):
     @classmethod
-    def get_token(cls, user: User):
+    def get_token(cls, user):
         token = super().get_token(user)
         token["role"] = user.role
         token["email"] = user.email

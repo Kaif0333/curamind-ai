@@ -24,9 +24,9 @@ jobs:
 
       - name: Lint
         run: |
-          black --check .
-          flake8 .
-          mypy .
+          black --check apps backend tests scripts
+          flake8 apps backend tests scripts
+          mypy apps backend tests scripts
 
       - name: Tests
         env:

@@ -30,6 +30,9 @@
                         </div>
                         <p class="muted-text">Author: {{ report.author.email|default:"Unknown author" }}</p>
                         <p>{{ report.content|truncatechars:260 }}</p>
+                        <div class="inline-actions">
+                            <a href="{% url 'portal-download-report' report.id %}" class="ghost-link">Download report</a>
+                        </div>
                         <form method="post" action="{% url 'portal-approve-report' report.id %}" class="inline-form">
                             {% csrf_token %}
                             <input type="hidden" name="approve" value="on">

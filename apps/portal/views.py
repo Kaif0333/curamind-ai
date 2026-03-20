@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -23,11 +23,14 @@ from apps.medical_records.models import MedicalRecord
 from apps.notifications.tasks import send_email_notification
 from apps.patients.models import PatientProfile
 from apps.portal.forms import (
+    AppointmentCancelForm,
     AppointmentCreateForm,
     AppointmentStatusForm,
+    DiagnosisCreateForm,
     ImageUploadForm,
     LoginForm,
     MedicalRecordCreateForm,
+    PrescriptionCreateForm,
     RegisterForm,
     ReportApproveForm,
     ReportCreateForm,
@@ -123,8 +126,15 @@ def dashboard(request: HttpRequest):
     if user.role == User.Role.PATIENT:
         patient = getattr(user, "patient_profile", None)
         appointments = Appointment.objects.filter(patient=patient).order_by("-scheduled_time")
-        records = MedicalRecord.objects.filter(patient=patient).order_by("-created_at")
-        reports = Report.objects.filter(medical_record__patient=patient).order_by("-created_at")
+        records = (
+            MedicalRecord.objects.filter(patient=patient)
+            .prefetch_related("diagnoses", "prescriptions")
+            .order_by("-created_at")
+        )
+        reports = Report.objects.filter(
+            medical_record__patient=patient,
+            status=Report.Status.APPROVED,
+        ).order_by("-created_at")
         images = MedicalImage.objects.filter(patient=patient).order_by("-uploaded_at")
         for image in images:
             image.ai_result = get_ai_result_by_image(str(image.id)) or {}
@@ -134,6 +144,7 @@ def dashboard(request: HttpRequest):
             "reports": reports,
             "images": images,
             "appointment_form": AppointmentCreateForm(),
+            "appointment_cancel_form": AppointmentCancelForm(),
             "image_form": ImageUploadForm(),
         }
         return _render_dashboard(request, "portal/dashboard_patient.html", context)
@@ -141,7 +152,11 @@ def dashboard(request: HttpRequest):
     if user.role == User.Role.DOCTOR:
         doctor = getattr(user, "doctor_profile", None)
         appointments = Appointment.objects.filter(doctor=doctor).order_by("-scheduled_time")
-        records = MedicalRecord.objects.filter(doctor=doctor).order_by("-created_at")
+        records = (
+            MedicalRecord.objects.filter(doctor=doctor)
+            .prefetch_related("diagnoses", "prescriptions")
+            .order_by("-created_at")
+        )
         reports = Report.objects.filter(author=user).order_by("-created_at")
         assigned_patients = (
             PatientProfile.objects.filter(
@@ -157,6 +172,8 @@ def dashboard(request: HttpRequest):
             "assigned_patients": assigned_patients,
             "appointment_status_form": AppointmentStatusForm(),
             "record_form": MedicalRecordCreateForm(user=user),
+            "diagnosis_form": DiagnosisCreateForm(user=user),
+            "prescription_form": PrescriptionCreateForm(user=user),
             "report_form": ReportCreateForm(user=user),
         }
         return _render_dashboard(request, "portal/dashboard_doctor.html", context)
@@ -169,13 +186,29 @@ def dashboard(request: HttpRequest):
         }
         return _render_dashboard(request, "portal/dashboard_radiologist.html", context)
 
+    action_filter = request.GET.get("action", "").strip()
+    email_filter = request.GET.get("email", "").strip()
+    resource_filter = request.GET.get("resource_id", "").strip()
+    recent_audit_logs = AuditLog.objects.select_related("user").all()
+    if action_filter:
+        recent_audit_logs = recent_audit_logs.filter(action__icontains=action_filter)
+    if email_filter:
+        recent_audit_logs = recent_audit_logs.filter(user__email__icontains=email_filter)
+    if resource_filter:
+        recent_audit_logs = recent_audit_logs.filter(resource_id=resource_filter)
+
     context = {
         "user_count": User.objects.count(),
         "appointments": Appointment.objects.count(),
         "records": MedicalRecord.objects.count(),
         "reports": Report.objects.count(),
         "images": MedicalImage.objects.count(),
-        "recent_audit_logs": AuditLog.objects.select_related("user")[:10],
+        "recent_audit_logs": recent_audit_logs[:50],
+        "audit_filters": {
+            "action": action_filter,
+            "email": email_filter,
+            "resource_id": resource_filter,
+        },
     }
     return _render_dashboard(request, "portal/dashboard_admin.html", context)
 
@@ -258,6 +291,43 @@ def update_appointment_status(request: HttpRequest, appointment_id: str):
 
 @login_required
 @require_POST
+def cancel_appointment(request: HttpRequest, appointment_id: str):
+    if request.user.role != User.Role.PATIENT:
+        messages.error(request, "Not authorized")
+        return redirect("portal-dashboard")
+
+    appointment = Appointment.objects.filter(
+        id=appointment_id,
+        patient=request.user.patient_profile,
+    ).first()
+    if not appointment:
+        messages.error(request, "Appointment not found")
+        return redirect("portal-dashboard")
+    if appointment.status in {
+        Appointment.Status.CANCELLED,
+        Appointment.Status.COMPLETED,
+        Appointment.Status.REJECTED,
+    }:
+        messages.error(request, "Appointment can no longer be cancelled")
+        return redirect("portal-dashboard")
+
+    appointment.status = Appointment.Status.CANCELLED
+    appointment.save(update_fields=["status", "updated_at"])
+    log_action(request.user, "appointment_cancel", request, resource_id=str(appointment.id))
+    send_email_notification.delay(
+        appointment.doctor.user.email,
+        "Appointment cancelled",
+        (
+            f"{request.user.email} cancelled the appointment scheduled "
+            f"for {appointment.scheduled_time}."
+        ),
+    )
+    messages.success(request, "Appointment cancelled")
+    return redirect("portal-dashboard")
+
+
+@login_required
+@require_POST
 def create_medical_record(request: HttpRequest):
     if request.user.role != User.Role.DOCTOR:
         messages.error(request, "Not authorized")
@@ -272,6 +342,46 @@ def create_medical_record(request: HttpRequest):
         messages.success(request, "Medical record created")
     else:
         messages.error(request, "Unable to create medical record")
+    return redirect("portal-dashboard")
+
+
+@login_required
+@require_POST
+def add_diagnosis(request: HttpRequest):
+    if request.user.role != User.Role.DOCTOR:
+        messages.error(request, "Not authorized")
+        return redirect("portal-dashboard")
+
+    form = DiagnosisCreateForm(request.POST or None, user=request.user)
+    if request.method == "POST" and form.is_valid():
+        record = form.cleaned_data["medical_record"]
+        diagnosis = record.diagnoses.create(text=form.cleaned_data["text"])
+        log_action(request.user, "diagnosis_create", request, resource_id=str(diagnosis.id))
+        messages.success(request, "Diagnosis added")
+    else:
+        messages.error(request, "Unable to add diagnosis")
+    return redirect("portal-dashboard")
+
+
+@login_required
+@require_POST
+def add_prescription(request: HttpRequest):
+    if request.user.role != User.Role.DOCTOR:
+        messages.error(request, "Not authorized")
+        return redirect("portal-dashboard")
+
+    form = PrescriptionCreateForm(request.POST or None, user=request.user)
+    if request.method == "POST" and form.is_valid():
+        record = form.cleaned_data["medical_record"]
+        prescription = record.prescriptions.create(
+            medication_name=form.cleaned_data["medication_name"],
+            dosage=form.cleaned_data["dosage"],
+            instructions=form.cleaned_data.get("instructions", ""),
+        )
+        log_action(request.user, "prescription_create", request, resource_id=str(prescription.id))
+        messages.success(request, "Prescription added")
+    else:
+        messages.error(request, "Unable to add prescription")
     return redirect("portal-dashboard")
 
 
@@ -330,3 +440,56 @@ def approve_report(request: HttpRequest, report_id: str):
     else:
         messages.error(request, "Unable to approve report")
     return redirect("portal-dashboard")
+
+
+@login_required
+def download_report(request: HttpRequest, report_id: str):
+    report = (
+        Report.objects.select_related(
+            "author",
+            "medical_record__patient__user",
+            "medical_record__doctor__user",
+        )
+        .filter(id=report_id)
+        .first()
+    )
+    if not report:
+        messages.error(request, "Report not found")
+        return redirect("portal-dashboard")
+
+    if request.user.role == User.Role.PATIENT:
+        if (
+            report.medical_record.patient.user != request.user
+            or report.status != Report.Status.APPROVED
+        ):
+            messages.error(request, "Not authorized")
+            return redirect("portal-dashboard")
+    elif request.user.role == User.Role.DOCTOR:
+        if report.author != request.user:
+            messages.error(request, "Not authorized")
+            return redirect("portal-dashboard")
+    elif request.user.role not in {User.Role.RADIOLOGIST, User.Role.ADMIN}:
+        messages.error(request, "Not authorized")
+        return redirect("portal-dashboard")
+
+    author = report.author.email if report.author else "Unknown"
+    body = "\n".join(
+        [
+            f"CuraMind AI Report ID: {report.id}",
+            f"Status: {report.status}",
+            f"Author: {author}",
+            f"Patient: {report.medical_record.patient.user.email}",
+            f"Doctor: {report.medical_record.doctor.user.email}",
+            f"Created At: {report.created_at.isoformat()}",
+            f"Approved At: {report.approved_at.isoformat() if report.approved_at else 'Pending'}",
+            "",
+            "Report Content",
+            "==============",
+            report.content,
+            "",
+        ]
+    )
+    response = HttpResponse(body, content_type="text/plain; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="curamind-report-{report.id}.txt"'
+    log_action(request.user, "report_download", request, resource_id=str(report.id))
+    return response

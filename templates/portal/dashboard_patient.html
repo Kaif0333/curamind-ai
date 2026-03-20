@@ -49,6 +49,12 @@
                         </div>
                         <p>{{ appointment.scheduled_time|date:"M d, Y H:i" }}</p>
                         <p>{{ appointment.reason|default:"No reason provided." }}</p>
+                        {% if appointment.status == "pending" or appointment.status == "approved" %}
+                            <form method="post" action="{% url 'portal-cancel-appointment' appointment.id %}" class="inline-form">
+                                {% csrf_token %}
+                                <button type="submit" class="secondary-button">Cancel appointment</button>
+                            </form>
+                        {% endif %}
                     </div>
                 {% endfor %}
             </div>
@@ -73,6 +79,22 @@
                         {% if record.ai_analysis %}
                             <p class="muted-text">AI summary: {{ record.ai_analysis }}</p>
                         {% endif %}
+                        {% if record.diagnoses.all %}
+                            <p class="muted-text">Diagnoses:</p>
+                            <ul class="detail-list">
+                                {% for diagnosis in record.diagnoses.all %}
+                                    <li>{{ diagnosis.text }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                        {% if record.prescriptions.all %}
+                            <p class="muted-text">Prescriptions:</p>
+                            <ul class="detail-list">
+                                {% for prescription in record.prescriptions.all %}
+                                    <li>{{ prescription.medication_name }} - {{ prescription.dosage }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
                     </div>
                 {% endfor %}
             </div>
@@ -94,6 +116,9 @@
                             <span class="status status-{{ report.status }}">{{ report.status|title }}</span>
                         </div>
                         <p>{{ report.content|truncatechars:200 }}</p>
+                        <div class="inline-actions">
+                            <a href="{% url 'portal-download-report' report.id %}" class="ghost-link">Download report</a>
+                        </div>
                     </div>
                 {% endfor %}
             </div>
@@ -114,7 +139,7 @@
                             <strong>{{ image.file_name }}</strong>
                             <span class="status status-{{ image.status }}">{{ image.status|title }}</span>
                         </div>
-                        <p>{{ image.modality|default:"Unknown modality" }} • {{ image.uploaded_at|date:"M d, Y H:i" }}</p>
+                        <p>{{ image.modality|default:"Unknown modality" }} | {{ image.uploaded_at|date:"M d, Y H:i" }}</p>
                         {% if image.ai_result.result.anomaly_probability %}
                             <p class="muted-text">Anomaly probability: {{ image.ai_result.result.anomaly_probability }}</p>
                         {% else %}

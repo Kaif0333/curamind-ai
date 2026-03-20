@@ -34,6 +34,22 @@
             <button type="submit" class="primary-button">Create report</button>
         </form>
     </article>
+    <article class="panel">
+        <h2>Add diagnosis</h2>
+        <form method="post" action="{% url 'portal-add-diagnosis' %}" class="form-stack">
+            {% csrf_token %}
+            {{ diagnosis_form.as_p }}
+            <button type="submit" class="secondary-button">Save diagnosis</button>
+        </form>
+    </article>
+    <article class="panel">
+        <h2>Add prescription</h2>
+        <form method="post" action="{% url 'portal-add-prescription' %}" class="form-stack">
+            {% csrf_token %}
+            {{ prescription_form.as_p }}
+            <button type="submit" class="secondary-button">Save prescription</button>
+        </form>
+    </article>
     <article class="panel span-2">
         <div class="section-header">
             <h2>Assigned patients</h2>
@@ -101,11 +117,51 @@
                             <span>{{ record.created_at|date:"M d, Y" }}</span>
                         </div>
                         <p>{{ record.diagnosis_text|truncatechars:220 }}</p>
+                        {% if record.diagnoses.all %}
+                            <p class="muted-text">Diagnoses:</p>
+                            <ul class="detail-list">
+                                {% for diagnosis in record.diagnoses.all %}
+                                    <li>{{ diagnosis.text }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                        {% if record.prescriptions.all %}
+                            <p class="muted-text">Prescriptions:</p>
+                            <ul class="detail-list">
+                                {% for prescription in record.prescriptions.all %}
+                                    <li>{{ prescription.medication_name }} - {{ prescription.dosage }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
                     </div>
                 {% endfor %}
             </div>
         {% else %}
             <p class="empty-state">No medical records created yet.</p>
+        {% endif %}
+    </article>
+    <article class="panel span-2">
+        <div class="section-header">
+            <h2>Drafted reports</h2>
+            <span>{{ reports|length }} authored reports</span>
+        </div>
+        {% if reports %}
+            <div class="list-grid">
+                {% for report in reports %}
+                    <div class="list-card">
+                        <div class="list-top">
+                            <strong>{{ report.medical_record.patient.user.email }}</strong>
+                            <span class="status status-{{ report.status }}">{{ report.status|title }}</span>
+                        </div>
+                        <p>{{ report.content|truncatechars:220 }}</p>
+                        <div class="inline-actions">
+                            <a href="{% url 'portal-download-report' report.id %}" class="ghost-link">Download report</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">No reports drafted yet.</p>
         {% endif %}
     </article>
 </section>

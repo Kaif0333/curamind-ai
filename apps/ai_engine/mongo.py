@@ -32,6 +32,22 @@ def store_image_metadata(image_id: str, metadata: dict) -> str:
     return str(inserted.inserted_id)
 
 
+def store_processing_log(
+    image_id: str,
+    stage: str,
+    status: str,
+    details: dict | None = None,
+) -> str:
+    doc = {
+        "image_id": image_id,
+        "stage": stage,
+        "status": status,
+        "details": details or {},
+    }
+    inserted = get_db().processing_logs.insert_one(doc)
+    return str(inserted.inserted_id)
+
+
 def get_ai_result_by_image(image_id: str) -> dict | None:
     try:
         return get_db().ai_results.find_one({"image_id": image_id})
@@ -50,3 +66,15 @@ def get_ai_result_by_id(result_id: str) -> dict | None:
     except PyMongoError:
         logger.exception("Failed to fetch AI result by id %s", result_id)
         return None
+
+
+def get_processing_logs_by_image(image_id: str) -> list[dict]:
+    try:
+        logs = list(get_db().processing_logs.find({"image_id": image_id}).sort("_id", 1))
+    except PyMongoError:
+        logger.exception("Failed to fetch processing logs for image %s", image_id)
+        return []
+
+    for log in logs:
+        log["_id"] = str(log["_id"])
+    return logs

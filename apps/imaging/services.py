@@ -8,7 +8,7 @@ from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 from django.http import HttpRequest
 
-from apps.ai_engine.mongo import store_image_metadata
+from apps.ai_engine.mongo import store_image_metadata, store_processing_log
 from apps.audit_logs.utils import log_action
 from apps.authentication.models import User
 from apps.imaging.models import MedicalImage
@@ -53,6 +53,20 @@ def handle_image_upload(
         status=MedicalImage.Status.UPLOADED,
     )
 
+    try:
+        store_processing_log(
+            str(image.id),
+            "upload",
+            "completed",
+            {
+                "file_name": image.file_name,
+                "modality": resolved_modality,
+                "content_type": image.content_type,
+            },
+        )
+    except Exception:
+        logger.exception("Failed to store upload processing log for image %s", image.id)
+
     if metadata:
         try:
             store_image_metadata(str(image.id), metadata)
@@ -63,7 +77,21 @@ def handle_image_upload(
         try:
             queue_image_processing(str(image.id))
         except Exception:
+            try:
+                store_processing_log(
+                    str(image.id),
+                    "queue",
+                    "failed",
+                    {"reason": "Failed to enqueue background processing"},
+                )
+            except Exception:
+                logger.exception("Failed to store queue failure log for image %s", image.id)
             logger.exception("Failed to enqueue background processing for image %s", image.id)
+        else:
+            try:
+                store_processing_log(str(image.id), "queue", "queued")
+            except Exception:
+                logger.exception("Failed to store queue log for image %s", image.id)
 
     log_action(user, "image_upload", request, resource_id=str(image.id))
     return image

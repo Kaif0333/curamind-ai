@@ -67,6 +67,10 @@ class AppointmentStatusForm(forms.ModelForm):
         fields = ("status",)
 
 
+class AppointmentCancelForm(forms.Form):
+    confirm = forms.BooleanField(required=False)
+
+
 class MedicalRecordCreateForm(forms.ModelForm):
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -109,6 +113,44 @@ class ReportCreateForm(forms.ModelForm):
 
 class ReportApproveForm(forms.Form):
     approve = forms.BooleanField(required=False)
+
+
+class DiagnosisCreateForm(forms.Form):
+    medical_record = forms.ModelChoiceField(queryset=MedicalRecord.objects.none())
+    text = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        queryset = MedicalRecord.objects.none()
+        if user and getattr(user, "doctor_profile", None):
+            queryset = MedicalRecord.objects.filter(doctor=user.doctor_profile)
+        self.fields["medical_record"].queryset = queryset.select_related("patient", "doctor")
+
+    def clean_medical_record(self):
+        medical_record = self.cleaned_data["medical_record"]
+        if medical_record not in self.fields["medical_record"].queryset:
+            raise forms.ValidationError("You can only update your own records.")
+        return medical_record
+
+
+class PrescriptionCreateForm(forms.Form):
+    medical_record = forms.ModelChoiceField(queryset=MedicalRecord.objects.none())
+    medication_name = forms.CharField(max_length=128)
+    dosage = forms.CharField(max_length=64)
+    instructions = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False)
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        queryset = MedicalRecord.objects.none()
+        if user and getattr(user, "doctor_profile", None):
+            queryset = MedicalRecord.objects.filter(doctor=user.doctor_profile)
+        self.fields["medical_record"].queryset = queryset.select_related("patient", "doctor")
+
+    def clean_medical_record(self):
+        medical_record = self.cleaned_data["medical_record"]
+        if medical_record not in self.fields["medical_record"].queryset:
+            raise forms.ValidationError("You can only update your own records.")
+        return medical_record
 
 
 class ImageUploadForm(forms.Form):

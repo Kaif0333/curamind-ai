@@ -1,3 +1,4 @@
+from django.http import HttpResponse
 from django.utils import timezone
 from guardian.shortcuts import assign_perm
 from rest_framework import status
@@ -17,17 +18,40 @@ from apps.reports.serializers import (
 )
 
 
+def _get_reports_for_user(user):
+    if user.role == User.Role.PATIENT:
+        return Report.objects.filter(
+            medical_record__patient__user=user,
+            status=Report.Status.APPROVED,
+        )
+    if user.role == User.Role.DOCTOR:
+        return Report.objects.filter(author=user)
+    if user.role in {User.Role.RADIOLOGIST, User.Role.ADMIN}:
+        return Report.objects.all()
+    return Report.objects.none()
+
+
+def _get_report_for_user(user, report_id: str) -> Report | None:
+    return (
+        _get_reports_for_user(user)
+        .select_related(
+            "author",
+            "medical_record__patient__user",
+            "medical_record__doctor__user",
+        )
+        .filter(id=report_id)
+        .first()
+    )
+
+
 class ReportListView(APIView):
     def get(self, request):
         user = request.user
-        if user.role == User.Role.PATIENT:
-            reports = Report.objects.filter(medical_record__patient__user=user)
-        elif user.role == User.Role.DOCTOR:
-            reports = Report.objects.filter(author=user)
-        elif user.role == User.Role.RADIOLOGIST:
-            reports = Report.objects.all()
-        else:
-            reports = Report.objects.all()
+        reports = _get_reports_for_user(user).select_related(
+            "author",
+            "medical_record__patient__user",
+            "medical_record__doctor__user",
+        )
         log_action(user, "report_view", request)
         return Response(ReportSerializer(reports, many=True).data, status=status.HTTP_200_OK)
 
@@ -94,3 +118,37 @@ class ReportApproveView(APIView):
                 "Your medical report has been approved by a radiologist.",
             )
         return Response(ReportSerializer(report).data, status=status.HTTP_200_OK)
+
+
+class ReportDownloadView(APIView):
+    def get(self, request, report_id: str):
+        report = _get_report_for_user(request.user, report_id)
+        if not report:
+            return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        patient = report.medical_record.patient.user
+        doctor = report.medical_record.doctor.user
+        author = report.author.email if report.author else "Unknown"
+        body = "\n".join(
+            [
+                f"CuraMind AI Report ID: {report.id}",
+                f"Status: {report.status}",
+                f"Author: {author}",
+                f"Patient: {patient.email}",
+                f"Doctor: {doctor.email}",
+                f"Created At: {report.created_at.isoformat()}",
+                (
+                    "Approved At: "
+                    f"{report.approved_at.isoformat() if report.approved_at else 'Pending'}"
+                ),
+                "",
+                "Report Content",
+                "==============",
+                report.content,
+                "",
+            ]
+        )
+        response = HttpResponse(body, content_type="text/plain; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="curamind-report-{report.id}.txt"'
+        log_action(request.user, "report_download", request, resource_id=str(report.id))
+        return response

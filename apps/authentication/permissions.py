@@ -1,3 +1,5 @@
+from typing import cast
+
 from rest_framework.permissions import BasePermission
 
 from apps.authentication.models import User
@@ -13,20 +15,20 @@ class IsRole(BasePermission):
 
 
 class IsPatient(IsRole):
-    role = User.Role.PATIENT
+    role = cast(str, User.Role.PATIENT)
 
 
 class IsDoctor(IsRole):
-    role = User.Role.DOCTOR
+    role = cast(str, User.Role.DOCTOR)
 
 
 class IsRadiologist(IsRole):
-    role = User.Role.RADIOLOGIST
+    role = cast(str, User.Role.RADIOLOGIST)
 
 
 class IsNurse(IsRole):
-    role = User.Role.NURSE
+    role = cast(str, User.Role.NURSE)
 
 
 class IsAdmin(IsRole):
-    role = User.Role.ADMIN
+    role = cast(str, User.Role.ADMIN)

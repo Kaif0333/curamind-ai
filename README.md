@@ -1,36 +1,37 @@
 # CuraMind AI
 
-CuraMind AI is a HIPAA-aligned Telehealth & AI Diagnostic Platform featuring a Django core, FastAPI inference microservice, and Celery-based async processing.
+CuraMind AI is a HIPAA-aligned Telehealth & AI Diagnostic Platform featuring a Django core, FastAPI inference microservice, a Flask utility service, and Celery-based async processing.
 
 ## Architecture
 - **Django**: Core API, auth, RBAC, medical records, imaging pipeline
-- **FastAPI**: AI inference (ResNet50 example) + heatmap output
+- **FastAPI**: AI inference (ResNet50 example) and heatmap output
+- **Flask**: Lightweight utility service for operational endpoints
 - **Celery + Redis**: Background jobs (preprocess, inference, reports, notifications)
 - **PostgreSQL**: Primary relational DB
-- **MongoDB**: AI results + image metadata
+- **MongoDB**: AI results, image metadata, and processing logs
 - **S3**: Secure image storage with signed URLs
 
 ## Repository Structure
-```
+```text
 curamind-ai/
 +-- backend/
-¦   +-- django_core/
-¦   +-- ai_service_fastapi/
-¦   +-- celery_worker/
-¦   +-- flask_utils/
+|   +-- django_core/
+|   +-- ai_service_fastapi/
+|   +-- celery_worker/
+|   +-- flask_utils/
 +-- apps/
-¦   +-- authentication/
-¦   +-- patients/
-¦   +-- doctors/
-¦   +-- appointments/
-¦   +-- medical_records/
-¦   +-- imaging/
-¦   +-- ai_engine/
-¦   +-- reports/
-¦   +-- audit_logs/
+|   +-- authentication/
+|   +-- patients/
+|   +-- doctors/
+|   +-- appointments/
+|   +-- medical_records/
+|   +-- imaging/
+|   +-- ai_engine/
+|   +-- reports/
+|   +-- audit_logs/
 +-- infrastructure/
-¦   +-- docker/
-¦   +-- nginx/
+|   +-- docker/
+|   +-- nginx/
 +-- tests/
 +-- scripts/
 +-- docs/
@@ -54,6 +55,11 @@ python backend/django_core/manage.py runserver
 uvicorn ai_service_fastapi.main:app --app-dir backend/ai_service_fastapi --reload --port 8001
 ```
 
+### Run Flask Utilities
+```bash
+gunicorn --chdir . backend.flask_utils.app:app --bind 0.0.0.0:8002
+```
+
 ### Run Celery
 ```bash
 celery -A backend.celery_worker.celery_app worker -l info
@@ -63,6 +69,10 @@ celery -A backend.celery_worker.celery_app worker -l info
 ```bash
 docker compose up -d --build
 ```
+
+## Utility Endpoints
+- `GET /utils/health`
+- `GET /utils/version`
 
 ## Documentation
 - `docs/deployment_guide.md`

@@ -21,6 +21,7 @@ urlpatterns = [
     path("records/", include("apps.medical_records.urls")),
     path("imaging/", include("apps.imaging.urls")),
     path("reports/", include("apps.reports.urls")),
+    path("audit-logs", include("apps.audit_logs.urls")),
     path("ai/", include("apps.ai_engine.urls")),
     path("upload-image", ImageUploadView.as_view(), name="upload-image"),
     path("patient/records", PatientRecordsView.as_view(), name="patient-records"),

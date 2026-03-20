@@ -40,3 +40,13 @@ class MedicalRecordCreateSerializer(serializers.Serializer):
     patient_id = serializers.UUIDField()
     diagnosis_text = serializers.CharField()
     ai_analysis = serializers.JSONField(required=False)
+
+
+class DiagnosisCreateSerializer(serializers.Serializer):
+    text = serializers.CharField()
+
+
+class PrescriptionCreateSerializer(serializers.Serializer):
+    medication_name = serializers.CharField(max_length=128)
+    dosage = serializers.CharField(max_length=64)
+    instructions = serializers.CharField(required=False, allow_blank=True)

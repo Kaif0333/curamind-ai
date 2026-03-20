@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import cast
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -76,7 +77,7 @@ def main() -> None:
         user_model=User,
         email="admin@curamind.ai",
         password="AdminPass123!",
-        role=User.Role.ADMIN,
+        role=cast(str, User.Role.ADMIN),
         first_name="CuraMind",
         last_name="Admin",
         is_staff=True,
@@ -86,7 +87,7 @@ def main() -> None:
         user_model=User,
         email="patient.demo@curamind.ai",
         password="PatientPass123!",
-        role=User.Role.PATIENT,
+        role=cast(str, User.Role.PATIENT),
         first_name="Amina",
         last_name="Khan",
     )
@@ -94,7 +95,7 @@ def main() -> None:
         user_model=User,
         email="doctor.demo@curamind.ai",
         password="DoctorPass123!",
-        role=User.Role.DOCTOR,
+        role=cast(str, User.Role.DOCTOR),
         first_name="Ravi",
         last_name="Shah",
     )
@@ -102,7 +103,7 @@ def main() -> None:
         user_model=User,
         email="radiologist.demo@curamind.ai",
         password="RadiologistPass123!",
-        role=User.Role.RADIOLOGIST,
+        role=cast(str, User.Role.RADIOLOGIST),
         first_name="Leena",
         last_name="Roy",
     )

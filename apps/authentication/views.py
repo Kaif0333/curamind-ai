@@ -21,7 +21,7 @@ def _attempt_key(email: str, ip: str | None) -> str:
 
 
 class RegisterView(APIView):
-    permission_classes = []
+    permission_classes = ()
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -33,7 +33,7 @@ class RegisterView(APIView):
 
 class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
-    permission_classes = []
+    permission_classes = ()
 
     def post(self, request, *args, **kwargs):
         email = request.data.get("email", "")
@@ -74,7 +74,7 @@ class LoginView(TokenObtainPairView):
 
 
 class RefreshView(TokenRefreshView):
-    permission_classes = []
+    permission_classes = ()
 
 
 class MeView(APIView):

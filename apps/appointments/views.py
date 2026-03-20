@@ -16,9 +16,28 @@ from apps.notifications.tasks import send_email_notification
 
 
 class AppointmentCreateView(APIView):
-    permission_classes = [IsPatient]
+    def get(self, request):
+        user = request.user
+        if user.role == User.Role.PATIENT:
+            appointments = Appointment.objects.filter(patient=user.patient_profile)
+        elif user.role == User.Role.DOCTOR:
+            appointments = Appointment.objects.filter(doctor=user.doctor_profile)
+        elif user.role in {User.Role.RADIOLOGIST, User.Role.ADMIN}:
+            appointments = Appointment.objects.all()
+        else:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        appointments = appointments.select_related("patient", "doctor").order_by("-scheduled_time")
+        log_action(user, "appointment_view", request)
+        return Response(
+            AppointmentSerializer(appointments, many=True).data,
+            status=status.HTTP_200_OK,
+        )
 
     def post(self, request):
+        if request.user.role != User.Role.PATIENT:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = AppointmentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         doctor_id = serializer.validated_data["doctor_id"]
@@ -59,5 +78,39 @@ class AppointmentStatusUpdateView(APIView):
             appointment.patient.user.email,
             "Appointment status updated",
             f"Your appointment status is now {appointment.status}.",
+        )
+        return Response(AppointmentSerializer(appointment).data, status=status.HTTP_200_OK)
+
+
+class AppointmentCancelView(APIView):
+    permission_classes = [IsPatient]
+
+    def patch(self, request, appointment_id: str):
+        appointment = Appointment.objects.filter(
+            id=appointment_id,
+            patient=request.user.patient_profile,
+        ).first()
+        if not appointment:
+            return Response({"detail": "Appointment not found"}, status=status.HTTP_404_NOT_FOUND)
+        if appointment.status in {
+            Appointment.Status.CANCELLED,
+            Appointment.Status.COMPLETED,
+            Appointment.Status.REJECTED,
+        }:
+            return Response(
+                {"detail": "Appointment can no longer be cancelled."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        appointment.status = Appointment.Status.CANCELLED
+        appointment.save(update_fields=["status", "updated_at"])
+        log_action(request.user, "appointment_cancel", request, resource_id=str(appointment.id))
+        send_email_notification.delay(
+            appointment.doctor.user.email,
+            "Appointment cancelled",
+            (
+                f"{request.user.email} cancelled the appointment scheduled "
+                f"for {appointment.scheduled_time}."
+            ),
         )
         return Response(AppointmentSerializer(appointment).data, status=status.HTTP_200_OK)

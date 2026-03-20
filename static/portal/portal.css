@@ -395,6 +395,16 @@ textarea {
     min-width: 10rem;
 }
 
+.detail-list {
+    margin: 0.5rem 0 0;
+    padding-left: 1.25rem;
+    color: var(--ink-soft);
+}
+
+.detail-list li + li {
+    margin-top: 0.35rem;
+}
+
 .table-wrap {
     overflow-x: auto;
 }

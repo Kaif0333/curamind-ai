@@ -101,3 +101,47 @@ def test_doctor_cannot_create_report_for_foreign_record():
 
     assert response.status_code == 403
     assert Report.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_patient_can_download_approved_report_but_not_draft():
+    patient_user = User.objects.create_user(
+        email="download-patient@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+    patient_profile = PatientProfile.objects.create(user=patient_user)
+
+    doctor_user = User.objects.create_user(
+        email="download-doctor@example.com",
+        password="StrongPass123",
+        role=User.Role.DOCTOR,
+    )
+    doctor_profile = DoctorProfile.objects.create(user=doctor_user, specialty="Radiology")
+    record = MedicalRecord.objects.create(
+        patient=patient_profile,
+        doctor=doctor_profile,
+        diagnosis_text="Imaging follow-up",
+    )
+    approved_report = Report.objects.create(
+        medical_record=record,
+        author=doctor_user,
+        status=Report.Status.APPROVED,
+        content="Approved report content",
+    )
+    draft_report = Report.objects.create(
+        medical_record=record,
+        author=doctor_user,
+        status=Report.Status.DRAFT,
+        content="Draft report content",
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=patient_user)
+
+    approved_response = client.get(f"/reports/{approved_report.id}/download")
+    draft_response = client.get(f"/reports/{draft_report.id}/download")
+
+    assert approved_response.status_code == 200
+    assert "Approved report content" in approved_response.content.decode("utf-8")
+    assert draft_response.status_code == 404

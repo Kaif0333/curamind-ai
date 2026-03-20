@@ -2,8 +2,8 @@
 
 ## Prerequisites
 - AWS EC2 instance (Ubuntu recommended)
-- Docker + Docker Compose installed
-- Domain name + SSL certificates (Let’s Encrypt or ACM)
+- Docker and Docker Compose installed
+- Domain name and SSL certificates (Let's Encrypt or ACM)
 
 ## Steps
 1. Clone the repository to the EC2 instance.
@@ -20,7 +20,9 @@ docker compose up -d --build
 5. Verify services:
 - Django: `http://<server>:8000/`
 - FastAPI: `http://<server>:8001/`
+- Flask utils: `http://<server>:8002/`
 - Nginx: `http://<server>/`
+- Utility endpoints via Nginx: `http://<server>/utils/health`
 
 ## Environment Variables
 - `DJANGO_ENV=production`
