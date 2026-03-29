@@ -322,6 +322,10 @@ def dashboard(request: HttpRequest):
         images = MedicalImage.objects.filter(patient=patient).order_by("-uploaded_at")
         for image in images:
             image.ai_result = get_ai_result_by_image(str(image.id)) or {}
+            result_payload = image.ai_result.get("result", {})
+            image.ai_probability = result_payload.get("anomaly_probability")
+            image.ai_probability_available = image.ai_probability is not None
+            image.ai_model = result_payload.get("model", "")
         context = {
             "appointments": appointments,
             "records": records,

@@ -4,6 +4,7 @@ from django.contrib import admin
 from django.urls import include, path, re_path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from curamind_core.health import healthz, readyz
 from apps.appointments.views import (
     AppointmentCancelView,
     AppointmentCreateView,
@@ -24,6 +25,8 @@ admin.site.site_title = "CuraMind AI Admin"
 admin.site.index_title = "Clinical operations and platform management"
 
 urlpatterns = [
+    path("healthz", healthz, name="healthz"),
+    path("readyz", readyz, name="readyz"),
     path("admin/", admin.site.urls),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

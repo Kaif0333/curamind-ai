@@ -9,12 +9,27 @@ import pydicom
 from PIL import Image
 
 
+def normalize_to_uint8(array: np.ndarray) -> np.ndarray:
+    if array.dtype == np.uint8:
+        return array
+
+    float_array = array.astype("float32")
+    min_value = float(np.min(float_array))
+    max_value = float(np.max(float_array))
+    if max_value <= min_value:
+        return np.zeros(float_array.shape, dtype=np.uint8)
+    normalized = (float_array - min_value) / (max_value - min_value)
+    return np.clip(normalized * 255.0, 0, 255).astype("uint8")
+
+
 def load_image_array(image_bytes: bytes) -> np.ndarray:
     try:
         dataset = pydicom.dcmread(BytesIO(image_bytes))
-        array = dataset.pixel_array.astype("uint8")
+        array = normalize_to_uint8(dataset.pixel_array)
         if array.ndim == 2:
             array = cv2.cvtColor(array, cv2.COLOR_GRAY2RGB)
+        elif array.ndim == 3 and array.shape[-1] == 1:
+            array = np.repeat(array, 3, axis=2)
         return array
     except Exception:
         pass

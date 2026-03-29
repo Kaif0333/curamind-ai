@@ -140,8 +140,11 @@
                             <span class="status status-{{ image.status }}">{{ image.status|title }}</span>
                         </div>
                         <p>{{ image.modality|default:"Unknown modality" }} | {{ image.uploaded_at|date:"M d, Y H:i" }}</p>
-                        {% if image.ai_result.result.anomaly_probability %}
-                            <p class="muted-text">Anomaly probability: {{ image.ai_result.result.anomaly_probability }}</p>
+                        {% if image.ai_probability_available %}
+                            <p class="muted-text">Anomaly probability: {{ image.ai_probability|floatformat:2 }}</p>
+                            {% if image.ai_model %}
+                                <p class="muted-text">Model: {{ image.ai_model }}</p>
+                            {% endif %}
                         {% else %}
                             <p class="muted-text">AI result pending or not yet available.</p>
                         {% endif %}

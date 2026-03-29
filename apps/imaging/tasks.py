@@ -59,13 +59,25 @@ def ai_inference_task(image_id: str) -> None:
         logger.exception("AI inference failed for image %s", image.id)
         return
 
+    image.metadata = {
+        **image.metadata,
+        **({"ai_model": result.get("model")} if result.get("model") else {}),
+        **(
+            {"ai_model_version": result.get("model_version")} if result.get("model_version") else {}
+        ),
+    }
+    image.metadata.pop("processing_error", None)
     image.status = MedicalImage.Status.PROCESSED
-    image.save(update_fields=["status"])
+    image.save(update_fields=["status", "metadata"])
     _log_processing_event(
         image_id,
         "inference",
         "completed",
-        {"anomaly_probability": result.get("anomaly_probability")},
+        {
+            "anomaly_probability": result.get("anomaly_probability"),
+            "model": result.get("model"),
+            "model_version": result.get("model_version"),
+        },
     )
 
 

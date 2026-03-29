@@ -76,6 +76,18 @@ def test_fastapi_utils_load_image_array_from_png_and_invalid_bytes():
         fastapi_utils.load_image_array(b"not-an-image")
 
 
+def test_fastapi_utils_normalize_to_uint8_handles_scaling_and_flat_arrays():
+    fastapi_utils = _fastapi_utils_module()
+
+    scaled = fastapi_utils.normalize_to_uint8(np.array([[10, 20]], dtype=np.uint16))
+    flat = fastapi_utils.normalize_to_uint8(np.array([[5, 5]], dtype=np.int16))
+
+    assert scaled.dtype == np.uint8
+    assert scaled.min() == 0
+    assert scaled.max() == 255
+    assert np.array_equal(flat, np.zeros((1, 2), dtype=np.uint8))
+
+
 def test_fastapi_utils_load_image_array_from_dicom(monkeypatch):
     fastapi_utils = _fastapi_utils_module()
 
@@ -122,6 +134,28 @@ def test_fastapi_mongo_get_ai_result(monkeypatch):
 
     assert fastapi_mongo.get_ai_result("img-1") == {"score": 0.8}
     assert fastapi_mongo.get_ai_result("missing") is None
+
+
+def test_fastapi_mongo_check_connection(monkeypatch):
+    fastapi_mongo = _fastapi_mongo_module()
+
+    class HealthyClient:
+        class admin:
+            @staticmethod
+            def command(_name):
+                return {"ok": 1}
+
+    class BrokenClient:
+        class admin:
+            @staticmethod
+            def command(_name):
+                raise fastapi_mongo.PyMongoError("down")
+
+    monkeypatch.setattr(fastapi_mongo, "_client", lambda: HealthyClient())
+    assert fastapi_mongo.check_mongo_connection() is True
+
+    monkeypatch.setattr(fastapi_mongo, "_client", lambda: BrokenClient())
+    assert fastapi_mongo.check_mongo_connection() is False
 
 
 def test_fastapi_model_predict_image_with_stubbed_ml_stack(monkeypatch):
@@ -193,6 +227,8 @@ def test_fastapi_model_predict_image_with_stubbed_ml_stack(monkeypatch):
     result = model_module.predict_image(b"image-bytes")
 
     assert result["model"] == "resnet50"
+    assert result["model_version"] == "demo-resnet50-v1"
+    assert result["device"] == "cpu"
     assert result["heatmap"] == "heatmap-data"
     assert result["anomaly_probability"] == 0.75
 

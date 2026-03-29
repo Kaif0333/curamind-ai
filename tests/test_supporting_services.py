@@ -4,10 +4,15 @@ from io import BytesIO
 
 import pytest
 from botocore.exceptions import ClientError
+from requests import RequestException
 from rest_framework.test import APIClient
 
 from apps.ai_engine import mongo as ai_mongo
-from apps.ai_engine.service import request_inference
+from apps.ai_engine.service import (
+    AIServiceRequestError,
+    AIServiceResponseError,
+    request_inference,
+)
 from apps.appointments.models import Appointment
 from apps.authentication.models import LoginAttempt, User
 from apps.doctors.models import DoctorProfile
@@ -27,6 +32,11 @@ class _FakeResponse:
 
     def json(self):
         return self._payload
+
+
+class _InvalidJSONResponse(_FakeResponse):
+    def json(self):
+        raise ValueError("bad json")
 
 
 @pytest.mark.django_db
@@ -70,6 +80,30 @@ def test_request_inference_stores_payload(monkeypatch):
     assert payload["anomaly_probability"] == 0.31
     assert stored["image_id"] == "image-123"
     assert stored["payload"]["model"] == "resnet50"
+
+
+def test_request_inference_rejects_transport_and_payload_failures(monkeypatch):
+    monkeypatch.setattr(
+        "apps.ai_engine.service.requests.post",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RequestException("network down")),
+    )
+
+    with pytest.raises(AIServiceRequestError):
+        request_inference(b"img-bytes", "image-transport")
+
+    monkeypatch.setattr(
+        "apps.ai_engine.service.requests.post",
+        lambda *args, **kwargs: _InvalidJSONResponse({}),
+    )
+    with pytest.raises(AIServiceResponseError):
+        request_inference(b"img-bytes", "image-json")
+
+    monkeypatch.setattr(
+        "apps.ai_engine.service.requests.post",
+        lambda *args, **kwargs: _FakeResponse({"heatmap": "abc", "model": "resnet50"}),
+    )
+    with pytest.raises(AIServiceResponseError):
+        request_inference(b"img-bytes", "image-payload")
 
 
 def test_send_email_notification_handles_empty_recipient_and_failures(monkeypatch):

@@ -130,13 +130,19 @@ def test_ai_inference_task_marks_image_processed(monkeypatch):
 
     monkeypatch.setattr(
         "apps.imaging.tasks.request_inference",
-        lambda image_bytes, image_id: {"anomaly_probability": 0.1},
+        lambda image_bytes, image_id: {
+            "anomaly_probability": 0.1,
+            "model": "resnet50",
+            "model_version": "demo-resnet50-v1",
+        },
     )
 
     ai_inference_task(str(image.id))
     image.refresh_from_db()
 
     assert image.status == MedicalImage.Status.PROCESSED
+    assert image.metadata["ai_model"] == "resnet50"
+    assert image.metadata["ai_model_version"] == "demo-resnet50-v1"
 
 
 @pytest.mark.django_db
@@ -170,7 +176,11 @@ def test_ai_inference_task_records_processing_log_events(monkeypatch):
 
     monkeypatch.setattr(
         "apps.imaging.tasks.request_inference",
-        lambda image_bytes, image_id: {"anomaly_probability": 0.25},
+        lambda image_bytes, image_id: {
+            "anomaly_probability": 0.25,
+            "model": "resnet50",
+            "model_version": "demo-resnet50-v1",
+        },
     )
     monkeypatch.setattr(
         "apps.imaging.tasks.store_processing_log",
@@ -189,6 +199,7 @@ def test_ai_inference_task_records_processing_log_events(monkeypatch):
     assert [event["status"] for event in logged_events] == ["started", "completed"]
     assert logged_events[0]["stage"] == "inference"
     assert logged_events[1]["details"]["anomaly_probability"] == 0.25
+    assert logged_events[1]["details"]["model"] == "resnet50"
 
 
 @pytest.mark.django_db

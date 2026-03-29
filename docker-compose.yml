@@ -3,21 +3,36 @@ services:
     image: postgres:15
     restart: always
     environment:
-      POSTGRES_DB: curamind
-      POSTGRES_USER: curamind
-      POSTGRES_PASSWORD: curamind
+      POSTGRES_DB: ${POSTGRES_DB:-curamind}
+      POSTGRES_USER: ${POSTGRES_USER:-curamind}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-curamind}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   mongodb:
     image: mongo:6
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\" || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
     volumes:
       - mongo_data:/data/db
 
   redis:
     image: redis:7
     restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   django:
     build:
@@ -25,24 +40,33 @@ services:
       dockerfile: infrastructure/docker/Dockerfile.django
     restart: always
     environment:
-      DJANGO_ENV: production
-      DEBUG: "False"
-      SECURE_SSL_REDIRECT: "False"
-      SESSION_COOKIE_SECURE: "False"
-      CSRF_COOKIE_SECURE: "False"
-      SECURE_HSTS_SECONDS: "0"
-      DJANGO_SECRET_KEY: "curamind-local-development-secret-key-please-change"
-      DATABASE_URL: postgres://curamind:curamind@postgres:5432/curamind
-      REDIS_URL: redis://redis:6379/0
-      MONGO_URI: mongodb://mongodb:27017
-      MONGO_DB_NAME: curamind
-      AI_SERVICE_URL: http://fastapi:8001
-      ALLOWED_HOSTS: "*"
-      CSRF_TRUSTED_ORIGINS: "http://localhost,http://127.0.0.1,http://localhost:8000,http://127.0.0.1:8000,https://localhost,https://127.0.0.1"
+      DJANGO_ENV: ${DJANGO_ENV:-production}
+      DEBUG: ${DEBUG:-False}
+      SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-False}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-False}
+      CSRF_COOKIE_SECURE: ${CSRF_COOKIE_SECURE:-False}
+      SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-0}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-curamind-local-development-secret-key-please-change}
+      DATABASE_URL: postgres://${POSTGRES_USER:-curamind}:${POSTGRES_PASSWORD:-curamind}@postgres:5432/${POSTGRES_DB:-curamind}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017}
+      MONGO_DB_NAME: ${MONGO_DB_NAME:-curamind}
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://fastapi:8001}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost,http://127.0.0.1,http://localhost:8000,http://127.0.0.1:8000,https://localhost,https://127.0.0.1}
     depends_on:
-      - postgres
-      - redis
-      - mongodb
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"from urllib.request import urlopen; import sys; sys.exit(0 if urlopen('http://127.0.0.1:8000/readyz').status == 200 else 1)\""]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 25s
     ports:
       - "8000:8000"
     volumes:
@@ -55,10 +79,20 @@ services:
       dockerfile: infrastructure/docker/Dockerfile.fastapi
     restart: always
     environment:
-      MONGO_URI: mongodb://mongodb:27017
-      MONGO_DB_NAME: curamind
+      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017}
+      MONGO_DB_NAME: ${MONGO_DB_NAME:-curamind}
+      AI_MAX_UPLOAD_MB: ${AI_MAX_UPLOAD_MB:-25}
+      AI_MODEL_NAME: ${AI_MODEL_NAME:-resnet50}
+      AI_MODEL_VERSION: ${AI_MODEL_VERSION:-demo-resnet50-v1}
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"from urllib.request import urlopen; import sys; sys.exit(0 if urlopen('http://127.0.0.1:8001/ready').status == 200 else 1)\""]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
     ports:
       - "8001:8001"
 
@@ -67,6 +101,12 @@ services:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.flask
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"from urllib.request import urlopen; import sys; sys.exit(0 if urlopen('http://127.0.0.1:8002/health').status == 200 else 1)\""]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     ports:
       - "8002:8002"
 
@@ -76,23 +116,26 @@ services:
       dockerfile: infrastructure/docker/Dockerfile.celery
     restart: always
     environment:
-      DJANGO_ENV: production
-      DEBUG: "False"
-      SESSION_COOKIE_SECURE: "False"
-      CSRF_COOKIE_SECURE: "False"
-      SECURE_HSTS_SECONDS: "0"
-      DJANGO_SECRET_KEY: "curamind-local-development-secret-key-please-change"
-      DATABASE_URL: postgres://curamind:curamind@postgres:5432/curamind
-      REDIS_URL: redis://redis:6379/0
-      MONGO_URI: mongodb://mongodb:27017
-      MONGO_DB_NAME: curamind
-      AI_SERVICE_URL: http://fastapi:8001
+      DJANGO_ENV: ${DJANGO_ENV:-production}
+      DEBUG: ${DEBUG:-False}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-False}
+      CSRF_COOKIE_SECURE: ${CSRF_COOKIE_SECURE:-False}
+      SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-0}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-curamind-local-development-secret-key-please-change}
+      DATABASE_URL: postgres://${POSTGRES_USER:-curamind}:${POSTGRES_PASSWORD:-curamind}@postgres:5432/${POSTGRES_DB:-curamind}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017}
+      MONGO_DB_NAME: ${MONGO_DB_NAME:-curamind}
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://fastapi:8001}
     volumes:
       - media_data:/app/media
     depends_on:
-      - django
-      - redis
-      - mongodb
+      django:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
 
   nginx:
     build:
@@ -106,9 +149,18 @@ services:
       - static_data:/app/staticfiles:ro
       - media_data:/app/media:ro
     depends_on:
-      - django
-      - fastapi
-      - flask-utils
+      django:
+        condition: service_healthy
+      fastapi:
+        condition: service_healthy
+      flask-utils:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/healthz > /dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
 
 volumes:
   postgres_data:

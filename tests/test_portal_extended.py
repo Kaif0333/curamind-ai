@@ -9,6 +9,7 @@ from apps.appointments.models import Appointment
 from apps.audit_logs.models import AuditLog
 from apps.authentication.models import User
 from apps.doctors.models import DoctorProfile
+from apps.imaging.models import MedicalImage
 from apps.medical_records.models import Diagnosis, MedicalRecord, Prescription
 from apps.patients.models import PatientProfile
 from apps.reports.models import Report
@@ -553,3 +554,54 @@ def test_patient_portal_shows_specific_appointment_validation_error():
 
     assert response.status_code == 200
     assert b"Appointments must be scheduled in the future." in response.content
+
+
+@pytest.mark.django_db
+def test_patient_portal_displays_zero_probability_ai_results():
+    patient_user = User.objects.create_user(
+        email="portal-zero-ai@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+    patient_profile = PatientProfile.objects.create(user=patient_user)
+    image = MedicalImage.objects.create(
+        patient=patient_profile,
+        uploaded_by=patient_user,
+        file_name="zero-probability.png",
+        s3_key="medical-images/zero-probability.png",
+        modality="X-Ray",
+        content_type="image/png",
+        file_size=10,
+        metadata={},
+    )
+
+    client = Client()
+    client.force_login(patient_user)
+
+    from apps.portal import views as portal_views
+
+    response = client.get(reverse("portal-dashboard"))
+    assert response.status_code == 200
+
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(
+            portal_views,
+            "get_ai_result_by_image",
+            lambda image_id: (
+                {
+                    "image_id": image_id,
+                    "result": {
+                        "anomaly_probability": 0.0,
+                        "heatmap": "abc",
+                        "model": "resnet50",
+                    },
+                }
+                if image_id == str(image.id)
+                else None
+            ),
+        )
+        response = client.get(reverse("portal-dashboard"))
+
+    assert response.status_code == 200
+    assert b"Anomaly probability: 0.00" in response.content
+    assert b"AI result pending or not yet available." not in response.content

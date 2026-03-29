@@ -76,9 +76,29 @@ celery -A backend.celery_worker.celery_app worker -l info
 docker compose up -d --build
 ```
 
-## Utility Endpoints
-- `GET /utils/health`
-- `GET /utils/version`
+Docker Compose now includes service healthchecks for PostgreSQL, MongoDB, Redis, Django, FastAPI, Flask utils, and Nginx so startup ordering is more reliable.
+
+## Health Endpoints
+- `GET /healthz` - Django liveness
+- `GET /readyz` - Django readiness (database + cache)
+- `GET /utils/health` - Flask utility service health
+- `GET /utils/version` - Flask utility service version
+- `GET /ai/health` - FastAPI AI service liveness
+- `GET /ai/ready` - FastAPI AI service readiness (model + MongoDB)
+- `GET /ai/model-info` - FastAPI AI model metadata
+
+## AWS / Ops Helpers
+- `scripts/ec2_bootstrap.sh` installs Docker, Docker Compose, and prepares an Ubuntu EC2 host
+- `scripts/post_deploy_healthcheck.sh` runs a post-deployment smoke check against the key health endpoints
+
+## Deployment Configuration
+- `docker compose` reads overrides from `.env`
+- AI service knobs:
+  - `AI_MAX_UPLOAD_MB`
+  - `AI_MODEL_NAME`
+  - `AI_MODEL_VERSION`
+- Django upload validation knob:
+  - `MAX_UPLOAD_MB`
 
 ## Documentation
 - `docs/deployment_guide.md`
