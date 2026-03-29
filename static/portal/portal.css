@@ -257,7 +257,8 @@ h3 {
 
 .hero-actions,
 .inline-actions,
-.inline-form {
+.inline-form,
+.auth-points {
     display: flex;
     gap: 0.8rem;
     align-items: center;
@@ -416,6 +417,15 @@ h3 {
     padding-right: 1rem;
 }
 
+.auth-points {
+    margin-top: 1.25rem;
+    align-items: stretch;
+}
+
+.auth-points .list-card {
+    flex: 1 1 16rem;
+}
+
 .auth-panel {
     max-width: 34rem;
     justify-self: end;
@@ -424,6 +434,23 @@ h3 {
 
 .form-stack p {
     margin: 0 0 1rem;
+}
+
+.helptext,
+.form-stack .helptext {
+    display: block;
+    margin-top: 0.4rem;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+}
+
+.errorlist {
+    margin: 0.45rem 0 0;
+    padding: 0.75rem 0.9rem;
+    border-radius: 0.9rem;
+    list-style: none;
+    background: rgba(221, 107, 77, 0.12);
+    color: #8b3f2b;
 }
 
 label {

@@ -16,9 +16,39 @@ from apps.patients.models import PatientProfile
 from apps.reports.models import Report
 
 
+def _display_name_for_user(user: User) -> str:
+    full_name = " ".join(part for part in [user.first_name, user.last_name] if part).strip()
+    return full_name or user.email
+
+
+class DoctorChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj: DoctorProfile) -> str:
+        clinician_name = _display_name_for_user(obj.user)
+        specialty = obj.specialty or "General practice"
+        return f"{clinician_name} - {specialty}"
+
+
+class PatientChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj: PatientProfile) -> str:
+        patient_name = _display_name_for_user(obj.user)
+        return f"{patient_name} ({obj.user.email})"
+
+
+class MedicalRecordChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj: MedicalRecord) -> str:
+        patient_name = _display_name_for_user(obj.patient.user)
+        return f"{patient_name} - {obj.created_at:%b %d, %Y}"
+
+
 class LoginForm(forms.Form):
-    email = forms.EmailField()
-    password = forms.CharField(widget=forms.PasswordInput)
+    email = forms.EmailField(
+        widget=forms.EmailInput(attrs={"placeholder": "you@curamind.ai", "autocomplete": "email"})
+    )
+    password = forms.CharField(
+        widget=forms.PasswordInput(
+            attrs={"placeholder": "Enter your password", "autocomplete": "current-password"}
+        )
+    )
 
     def authenticate_user(self):
         return authenticate(
@@ -28,25 +58,53 @@ class LoginForm(forms.Form):
 
 class MFALoginForm(forms.Form):
     code = forms.CharField(
-        max_length=12, help_text="Enter the 6-digit code from your authenticator."
+        max_length=12,
+        help_text="Enter the 6-digit code from your authenticator.",
+        widget=forms.TextInput(
+            attrs={"placeholder": "123456", "inputmode": "numeric", "autocomplete": "one-time-code"}
+        ),
     )
 
 
 class MFADisableForm(forms.Form):
-    password = forms.CharField(widget=forms.PasswordInput)
-    code = forms.CharField(max_length=12)
+    password = forms.CharField(
+        widget=forms.PasswordInput(
+            attrs={"placeholder": "Confirm your password", "autocomplete": "current-password"}
+        )
+    )
+    code = forms.CharField(
+        max_length=12,
+        widget=forms.TextInput(attrs={"placeholder": "123456", "inputmode": "numeric"}),
+    )
 
 
 class RegisterForm(forms.Form):
-    email = forms.EmailField()
-    first_name = forms.CharField(required=False)
-    last_name = forms.CharField(required=False)
-    password = forms.CharField(widget=forms.PasswordInput)
-    role = forms.ChoiceField(choices=(), required=False)
+    email = forms.EmailField(
+        widget=forms.EmailInput(attrs={"placeholder": "name@example.com", "autocomplete": "email"})
+    )
+    first_name = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"placeholder": "First name", "autocomplete": "given-name"}),
+    )
+    last_name = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"placeholder": "Last name", "autocomplete": "family-name"}),
+    )
+    password = forms.CharField(
+        widget=forms.PasswordInput(
+            attrs={"placeholder": "Choose a strong password", "autocomplete": "new-password"}
+        )
+    )
+    role = forms.ChoiceField(
+        choices=(), required=False, help_text="Select the account role to request."
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["role"].choices = get_self_assignable_role_choices()
+        if len(self.fields["role"].choices) <= 1:
+            self.fields["role"].widget = forms.HiddenInput()
+            self.fields["role"].help_text = ""
 
     def clean_role(self):
         allow_roles = os.getenv("ALLOW_SELF_ASSIGN_ROLES", "false").lower() == "true"
@@ -56,14 +114,28 @@ class RegisterForm(forms.Form):
 
 
 class AppointmentCreateForm(forms.ModelForm):
-    doctor = forms.ModelChoiceField(queryset=DoctorProfile.objects.none())
+    doctor = DoctorChoiceField(
+        queryset=DoctorProfile.objects.none(),
+        empty_label="Choose a doctor",
+        help_text="Select the clinician you want to see.",
+    )
     scheduled_time = forms.DateTimeField(
-        widget=forms.DateTimeInput(attrs={"type": "datetime-local"})
+        input_formats=["%Y-%m-%dT%H:%M"],
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
+        help_text="Appointments must be scheduled in the future.",
     )
 
     class Meta:
         model = Appointment
         fields = ("doctor", "scheduled_time", "reason")
+        widgets = {
+            "reason": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                    "placeholder": "Describe symptoms, concerns, or the reason for this visit.",
+                }
+            )
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -82,6 +154,9 @@ class AppointmentStatusForm(forms.ModelForm):
     class Meta:
         model = Appointment
         fields = ("status",)
+        widgets = {
+            "status": forms.Select(),
+        }
 
 
 class AppointmentCancelForm(forms.Form):
@@ -98,7 +173,11 @@ class MedicalRecordCreateForm(forms.ModelForm):
             queryset = PatientProfile.objects.filter(
                 Q(appointments__doctor=doctor_profile) | Q(medical_records__doctor=doctor_profile)
             ).distinct()
-        self.fields["patient"].queryset = queryset.select_related("user")
+        self.fields["patient"] = PatientChoiceField(
+            queryset=queryset.select_related("user"),
+            empty_label="Choose a patient",
+            help_text="Only patients already assigned to you appear here.",
+        )
 
     def clean_patient(self):
         patient = self.cleaned_data["patient"]
@@ -109,6 +188,14 @@ class MedicalRecordCreateForm(forms.ModelForm):
     class Meta:
         model = MedicalRecord
         fields = ("patient", "diagnosis_text")
+        widgets = {
+            "diagnosis_text": forms.Textarea(
+                attrs={
+                    "rows": 5,
+                    "placeholder": "Summarize the visit, findings, and clinical plan.",
+                }
+            )
+        }
 
 
 class ReportCreateForm(forms.ModelForm):
@@ -117,7 +204,11 @@ class ReportCreateForm(forms.ModelForm):
         queryset = MedicalRecord.objects.none()
         if user and getattr(user, "doctor_profile", None):
             queryset = MedicalRecord.objects.filter(doctor=user.doctor_profile)
-        self.fields["medical_record"].queryset = queryset.select_related("patient", "doctor")
+        self.fields["medical_record"] = MedicalRecordChoiceField(
+            queryset=queryset.select_related("patient__user", "doctor__user"),
+            empty_label="Choose a medical record",
+            help_text="Only records authored by you are eligible for report drafts.",
+        )
 
     def clean_medical_record(self):
         medical_record = self.cleaned_data["medical_record"]
@@ -128,6 +219,11 @@ class ReportCreateForm(forms.ModelForm):
     class Meta:
         model = Report
         fields = ("medical_record", "content")
+        widgets = {
+            "content": forms.Textarea(
+                attrs={"rows": 6, "placeholder": "Draft the report narrative for radiology review."}
+            )
+        }
 
 
 class ReportApproveForm(forms.Form):
@@ -135,8 +231,13 @@ class ReportApproveForm(forms.Form):
 
 
 class DiagnosisCreateForm(forms.Form):
-    medical_record = forms.ModelChoiceField(queryset=MedicalRecord.objects.none())
-    text = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    medical_record = MedicalRecordChoiceField(
+        queryset=MedicalRecord.objects.none(),
+        empty_label="Choose a medical record",
+    )
+    text = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Add a concise diagnosis note."})
+    )
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -153,10 +254,24 @@ class DiagnosisCreateForm(forms.Form):
 
 
 class PrescriptionCreateForm(forms.Form):
-    medical_record = forms.ModelChoiceField(queryset=MedicalRecord.objects.none())
-    medication_name = forms.CharField(max_length=128)
-    dosage = forms.CharField(max_length=64)
-    instructions = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), required=False)
+    medical_record = MedicalRecordChoiceField(
+        queryset=MedicalRecord.objects.none(),
+        empty_label="Choose a medical record",
+    )
+    medication_name = forms.CharField(
+        max_length=128,
+        widget=forms.TextInput(attrs={"placeholder": "Medication name"}),
+    )
+    dosage = forms.CharField(
+        max_length=64,
+        widget=forms.TextInput(attrs={"placeholder": "Dosage, e.g. 5 mg twice daily"}),
+    )
+    instructions = forms.CharField(
+        widget=forms.Textarea(
+            attrs={"rows": 3, "placeholder": "Administration instructions and follow-up notes."}
+        ),
+        required=False,
+    )
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -173,5 +288,11 @@ class PrescriptionCreateForm(forms.Form):
 
 
 class ImageUploadForm(forms.Form):
-    file = forms.FileField()
-    modality = forms.CharField(required=False)
+    file = forms.FileField(
+        help_text="Upload PNG, JPG, or DICOM imaging files.",
+        widget=forms.ClearableFileInput(attrs={"accept": ".dcm,.dicom,image/*"}),
+    )
+    modality = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"placeholder": "Optional: MRI, CT, X-Ray, DICOM"}),
+    )

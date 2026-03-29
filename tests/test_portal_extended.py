@@ -343,6 +343,51 @@ def test_radiologist_and_admin_portal_dashboards_and_report_approval():
 
 
 @pytest.mark.django_db
+def test_nurse_portal_dashboard_is_isolated_from_admin_view():
+    nurse_user = User.objects.create_user(
+        email="portal-nurse@example.com",
+        password="StrongPass123",
+        role=User.Role.NURSE,
+    )
+
+    client = Client()
+    client.force_login(nurse_user)
+
+    response = client.get(reverse("portal-dashboard"))
+
+    assert response.status_code == 200
+    assert b"Nurse workspace" in response.content
+    assert b"Recent audit events" not in response.content
+
+
+@pytest.mark.django_db
+def test_portal_dashboard_handles_missing_role_profiles_gracefully():
+    patient_user = User.objects.create_user(
+        email="portal-missing-patient-profile@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+    doctor_user = User.objects.create_user(
+        email="portal-missing-doctor-profile@example.com",
+        password="StrongPass123",
+        role=User.Role.DOCTOR,
+    )
+
+    client = Client()
+
+    client.force_login(patient_user)
+    patient_response = client.get(reverse("portal-dashboard"))
+
+    client.force_login(doctor_user)
+    doctor_response = client.get(reverse("portal-dashboard"))
+
+    assert patient_response.status_code == 200
+    assert b"Your workspace is almost ready." in patient_response.content
+    assert doctor_response.status_code == 200
+    assert b"Finish provisioning" in doctor_response.content
+
+
+@pytest.mark.django_db
 def test_portal_download_permissions_and_not_found_branches():
     patient_user = User.objects.create_user(
         email="portal-download-patient@example.com",
@@ -396,6 +441,16 @@ def test_portal_download_permissions_and_not_found_branches():
     client.force_login(foreign_doctor)
     unauthorized_doctor = client.get(reverse("portal-download-report", args=[approved_report.id]))
     assert unauthorized_doctor.status_code == 302
+
+    admin_user = User.objects.create_user(
+        email="portal-download-admin@example.com",
+        password="StrongPass123",
+        role=User.Role.ADMIN,
+        is_staff=True,
+    )
+    client.force_login(admin_user)
+    unauthorized_admin = client.get(reverse("portal-download-report", args=[approved_report.id]))
+    assert unauthorized_admin.status_code == 302
 
     client.force_login(patient_user)
     draft_blocked = client.get(reverse("portal-download-report", args=[draft_report.id]))
@@ -466,3 +521,35 @@ def test_portal_doctor_actions_reject_invalid_forms():
     assert invalid_diagnosis.status_code == 302
     assert invalid_prescription.status_code == 302
     assert invalid_report.status_code == 302
+
+
+@pytest.mark.django_db
+def test_patient_portal_shows_specific_appointment_validation_error():
+    patient_user = User.objects.create_user(
+        email="portal-patient-validation@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+    PatientProfile.objects.create(user=patient_user)
+    doctor_user = User.objects.create_user(
+        email="portal-patient-validation-doctor@example.com",
+        password="StrongPass123",
+        role=User.Role.DOCTOR,
+    )
+    DoctorProfile.objects.create(user=doctor_user, specialty="General")
+
+    client = Client()
+    client.force_login(patient_user)
+
+    response = client.post(
+        reverse("portal-book-appointment"),
+        {
+            "doctor": str(doctor_user.doctor_profile.id),
+            "scheduled_time": "2000-01-01T10:00",
+            "reason": "Past appointment",
+        },
+        follow=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Appointments must be scheduled in the future." in response.content

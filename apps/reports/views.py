@@ -138,6 +138,12 @@ class ReportDownloadView(APIView):
         }
     )
     def get(self, request, report_id: str):
+        if request.user.role == User.Role.ADMIN:
+            return Response(
+                {"detail": "Administrators cannot download private patient reports."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         report = _get_report_for_user(request.user, report_id)
         if not report:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)

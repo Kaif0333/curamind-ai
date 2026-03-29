@@ -8,10 +8,27 @@
     <div class="auth-intro">
         <span class="eyebrow">Patient onboarding</span>
         <h1>Start your diagnostics journey with a secure profile.</h1>
-        <p>
-            Self-registration creates a patient account by default. Clinical roles can still be provisioned
-            through admin workflows or environment policy.
-        </p>
+        {% if form.fields.role.widget.input_type == "hidden" %}
+            <p>
+                Self-registration creates a patient account by default. Clinical roles can still be provisioned
+                through admin workflows or environment policy.
+            </p>
+        {% else %}
+            <p>
+                Self-registration is currently configured to allow approved role requests. Choose the role that
+                matches the workspace you need, then complete onboarding securely.
+            </p>
+        {% endif %}
+        <div class="auth-points">
+            <div class="list-card">
+                <strong>Immediate access</strong>
+                <p>Create your account and sign in as soon as provisioning completes.</p>
+            </div>
+            <div class="list-card">
+                <strong>Built for healthcare</strong>
+                <p>Imaging uploads, appointments, reports, and security controls stay connected in one system.</p>
+            </div>
+        </div>
     </div>
     <div class="panel auth-panel">
         <h2>Create Account</h2>

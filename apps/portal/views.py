@@ -47,6 +47,23 @@ PENDING_PORTAL_MFA_USER_ID = "pending_portal_mfa_user_id"
 PENDING_PORTAL_MFA_BACKEND = "pending_portal_mfa_backend"
 
 
+def _flash_form_errors(request: HttpRequest, form, fallback_message: str) -> None:
+    form_errors: list[str] = []
+    for field, errors in form.errors.items():
+        if field == "__all__":
+            form_errors.extend(str(error) for error in errors)
+            continue
+        label = form.fields[field].label or field.replace("_", " ").title()
+        form_errors.extend(f"{label}: {error}" for error in errors)
+
+    if not form_errors:
+        messages.error(request, fallback_message)
+        return
+
+    for error in form_errors:
+        messages.error(request, error)
+
+
 def _get_pending_portal_mfa_user(pending_user_id: str | None) -> User | None:
     if not pending_user_id:
         return None
@@ -204,6 +221,14 @@ def _render_dashboard(request: HttpRequest, template: str, context: dict):
     return render(request, template, context)
 
 
+def _render_account_issue(request: HttpRequest, role_label: str, issue_message: str):
+    return render(
+        request,
+        "portal/dashboard_account_issue.html",
+        {"role_label": role_label, "issue_message": issue_message},
+    )
+
+
 @login_required
 def mfa_settings_view(request: HttpRequest):
     user = request.user
@@ -275,6 +300,15 @@ def dashboard(request: HttpRequest):
 
     if user.role == User.Role.PATIENT:
         patient = getattr(user, "patient_profile", None)
+        if not patient:
+            return _render_account_issue(
+                request,
+                "Patient",
+                (
+                    "Your patient profile has not been provisioned yet. "
+                    "Please contact support or an administrator before booking care."
+                ),
+            )
         appointments = Appointment.objects.filter(patient=patient).order_by("-scheduled_time")
         records = (
             MedicalRecord.objects.filter(patient=patient)
@@ -301,6 +335,15 @@ def dashboard(request: HttpRequest):
 
     if user.role == User.Role.DOCTOR:
         doctor = getattr(user, "doctor_profile", None)
+        if not doctor:
+            return _render_account_issue(
+                request,
+                "Doctor",
+                (
+                    "Your clinician profile is incomplete. Please contact an administrator "
+                    "to finish provisioning before managing patients."
+                ),
+            )
         appointments = Appointment.objects.filter(doctor=doctor).order_by("-scheduled_time")
         records = (
             MedicalRecord.objects.filter(doctor=doctor)
@@ -336,6 +379,12 @@ def dashboard(request: HttpRequest):
         }
         return _render_dashboard(request, "portal/dashboard_radiologist.html", context)
 
+    if user.role == User.Role.NURSE:
+        context = {
+            "today": timezone.localdate(),
+        }
+        return _render_dashboard(request, "portal/dashboard_nurse.html", context)
+
     action_filter = request.GET.get("action", "").strip()
     email_filter = request.GET.get("email", "").strip()
     resource_filter = request.GET.get("resource_id", "").strip()
@@ -370,6 +419,10 @@ def book_appointment(request: HttpRequest):
         messages.error(request, "Not authorized")
         return redirect("portal-dashboard")
 
+    if not getattr(request.user, "patient_profile", None):
+        messages.error(request, "Your patient profile is not available yet.")
+        return redirect("portal-dashboard")
+
     form = AppointmentCreateForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         appointment = form.save(commit=False)
@@ -384,7 +437,7 @@ def book_appointment(request: HttpRequest):
         )
         messages.success(request, "Appointment requested")
     else:
-        messages.error(request, "Unable to create appointment")
+        _flash_form_errors(request, form, "Unable to create appointment.")
     return redirect("portal-dashboard")
 
 
@@ -393,6 +446,10 @@ def book_appointment(request: HttpRequest):
 def upload_image(request: HttpRequest):
     if request.user.role != User.Role.PATIENT:
         messages.error(request, "Not authorized")
+        return redirect("portal-dashboard")
+
+    if not getattr(request.user, "patient_profile", None):
+        messages.error(request, "Your patient profile is not available yet.")
         return redirect("portal-dashboard")
 
     form = ImageUploadForm(request.POST or None, request.FILES or None)
@@ -404,9 +461,12 @@ def upload_image(request: HttpRequest):
         except ValueError as exc:
             messages.error(request, str(exc))
         else:
-            messages.success(request, "Image uploaded")
+            messages.success(
+                request,
+                "Image uploaded. AI processing will continue in the background if applicable.",
+            )
     else:
-        messages.error(request, "Invalid upload")
+        _flash_form_errors(request, form, "Invalid upload.")
     return redirect("portal-dashboard")
 
 
@@ -438,6 +498,10 @@ def update_appointment_status(request: HttpRequest, appointment_id: str):
         messages.error(request, "Not authorized")
         return redirect("portal-dashboard")
 
+    if not getattr(request.user, "doctor_profile", None):
+        messages.error(request, "Your clinician profile is not available yet.")
+        return redirect("portal-dashboard")
+
     appointment = Appointment.objects.filter(
         id=appointment_id, doctor=request.user.doctor_profile
     ).first()
@@ -456,7 +520,7 @@ def update_appointment_status(request: HttpRequest, appointment_id: str):
         )
         messages.success(request, "Appointment updated")
     else:
-        messages.error(request, "Unable to update appointment")
+        _flash_form_errors(request, form, "Unable to update appointment.")
     return redirect("portal-dashboard")
 
 
@@ -465,6 +529,10 @@ def update_appointment_status(request: HttpRequest, appointment_id: str):
 def cancel_appointment(request: HttpRequest, appointment_id: str):
     if request.user.role != User.Role.PATIENT:
         messages.error(request, "Not authorized")
+        return redirect("portal-dashboard")
+
+    if not getattr(request.user, "patient_profile", None):
+        messages.error(request, "Your patient profile is not available yet.")
         return redirect("portal-dashboard")
 
     appointment = Appointment.objects.filter(
@@ -504,6 +572,10 @@ def create_medical_record(request: HttpRequest):
         messages.error(request, "Not authorized")
         return redirect("portal-dashboard")
 
+    if not getattr(request.user, "doctor_profile", None):
+        messages.error(request, "Your clinician profile is not available yet.")
+        return redirect("portal-dashboard")
+
     form = MedicalRecordCreateForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
         record = form.save(commit=False)
@@ -512,7 +584,7 @@ def create_medical_record(request: HttpRequest):
         log_action(request.user, "record_create", request, resource_id=str(record.id))
         messages.success(request, "Medical record created")
     else:
-        messages.error(request, "Unable to create medical record")
+        _flash_form_errors(request, form, "Unable to create medical record.")
     return redirect("portal-dashboard")
 
 
@@ -523,6 +595,10 @@ def add_diagnosis(request: HttpRequest):
         messages.error(request, "Not authorized")
         return redirect("portal-dashboard")
 
+    if not getattr(request.user, "doctor_profile", None):
+        messages.error(request, "Your clinician profile is not available yet.")
+        return redirect("portal-dashboard")
+
     form = DiagnosisCreateForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
         record = form.cleaned_data["medical_record"]
@@ -530,7 +606,7 @@ def add_diagnosis(request: HttpRequest):
         log_action(request.user, "diagnosis_create", request, resource_id=str(diagnosis.id))
         messages.success(request, "Diagnosis added")
     else:
-        messages.error(request, "Unable to add diagnosis")
+        _flash_form_errors(request, form, "Unable to add diagnosis.")
     return redirect("portal-dashboard")
 
 
@@ -539,6 +615,10 @@ def add_diagnosis(request: HttpRequest):
 def add_prescription(request: HttpRequest):
     if request.user.role != User.Role.DOCTOR:
         messages.error(request, "Not authorized")
+        return redirect("portal-dashboard")
+
+    if not getattr(request.user, "doctor_profile", None):
+        messages.error(request, "Your clinician profile is not available yet.")
         return redirect("portal-dashboard")
 
     form = PrescriptionCreateForm(request.POST or None, user=request.user)
@@ -552,7 +632,7 @@ def add_prescription(request: HttpRequest):
         log_action(request.user, "prescription_create", request, resource_id=str(prescription.id))
         messages.success(request, "Prescription added")
     else:
-        messages.error(request, "Unable to add prescription")
+        _flash_form_errors(request, form, "Unable to add prescription.")
     return redirect("portal-dashboard")
 
 
@@ -561,6 +641,10 @@ def add_prescription(request: HttpRequest):
 def create_report(request: HttpRequest):
     if request.user.role != User.Role.DOCTOR:
         messages.error(request, "Not authorized")
+        return redirect("portal-dashboard")
+
+    if not getattr(request.user, "doctor_profile", None):
+        messages.error(request, "Your clinician profile is not available yet.")
         return redirect("portal-dashboard")
 
     form = ReportCreateForm(request.POST or None, user=request.user)
@@ -577,7 +661,7 @@ def create_report(request: HttpRequest):
         )
         messages.success(request, "Report created")
     else:
-        messages.error(request, "Unable to create report")
+        _flash_form_errors(request, form, "Unable to create report.")
     return redirect("portal-dashboard")
 
 
@@ -639,7 +723,10 @@ def download_report(request: HttpRequest, report_id: str):
         if report.author != request.user:
             messages.error(request, "Not authorized")
             return redirect("portal-dashboard")
-    elif request.user.role not in {User.Role.RADIOLOGIST, User.Role.ADMIN}:
+    elif request.user.role == User.Role.ADMIN:
+        messages.error(request, "Administrators cannot download private patient reports.")
+        return redirect("portal-dashboard")
+    elif request.user.role not in {User.Role.RADIOLOGIST}:
         messages.error(request, "Not authorized")
         return redirect("portal-dashboard")
 

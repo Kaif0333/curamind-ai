@@ -145,3 +145,45 @@ def test_patient_can_download_approved_report_but_not_draft():
     assert approved_response.status_code == 200
     assert "Approved report content" in approved_response.content.decode("utf-8")
     assert draft_response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_admin_cannot_download_private_patient_report():
+    patient_user = User.objects.create_user(
+        email="download-admin-patient@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+    patient_profile = PatientProfile.objects.create(user=patient_user)
+
+    doctor_user = User.objects.create_user(
+        email="download-admin-doctor@example.com",
+        password="StrongPass123",
+        role=User.Role.DOCTOR,
+    )
+    doctor_profile = DoctorProfile.objects.create(user=doctor_user, specialty="Radiology")
+    record = MedicalRecord.objects.create(
+        patient=patient_profile,
+        doctor=doctor_profile,
+        diagnosis_text="Protected report",
+    )
+    report = Report.objects.create(
+        medical_record=record,
+        author=doctor_user,
+        status=Report.Status.APPROVED,
+        content="Sensitive report content",
+    )
+
+    admin_user = User.objects.create_user(
+        email="download-admin@example.com",
+        password="StrongPass123",
+        role=User.Role.ADMIN,
+        is_staff=True,
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=admin_user)
+
+    response = client.get(f"/reports/{report.id}/download")
+
+    assert response.status_code == 403

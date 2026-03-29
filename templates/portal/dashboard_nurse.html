@@ -1,0 +1,45 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Nurse Dashboard | CuraMind AI{% endblock %}
+
+{% block content %}
+<section class="dashboard-hero">
+    <div>
+        <span class="eyebrow">Nurse workspace</span>
+        <h1>Operational access without exposing private physician-only data.</h1>
+        <p>
+            This workspace keeps security boundaries clear while your nursing workflows are being provisioned.
+        </p>
+    </div>
+    <div class="summary-row">
+        <div class="summary-card"><span>Role</span><strong>Nurse</strong></div>
+        <div class="summary-card"><span>Date</span><strong>{{ today|date:"M d, Y" }}</strong></div>
+    </div>
+</section>
+
+<section class="dashboard-grid">
+    <article class="panel">
+        <h2>What you can do now</h2>
+        <ul class="detail-list">
+            <li>Review your account security settings.</li>
+            <li>Coordinate with administrators for workflow-specific provisioning.</li>
+            <li>Use the platform without inheriting admin visibility by mistake.</li>
+        </ul>
+    </article>
+    <article class="panel">
+        <h2>Quick links</h2>
+        <div class="inline-actions">
+            <a href="{% url 'portal-mfa-settings' %}" class="ghost-link">Security settings</a>
+            <a href="/api/docs/" class="ghost-link">API docs</a>
+        </div>
+    </article>
+    <article class="panel span-2">
+        <h2>Provisioning Note</h2>
+        <p class="muted-text">
+            Nurse-specific operational workflows are intentionally separated from admin dashboards and private
+            report downloads. If you need additional access, an administrator should provision the exact permissions
+            required for your responsibilities.
+        </p>
+    </article>
+</section>
+{% endblock %}
