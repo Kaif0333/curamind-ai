@@ -15,6 +15,9 @@
             <a href="{% url 'portal-register' %}" class="button-link">Open Patient Portal</a>
             <a href="{% url 'portal-login' %}" class="ghost-link">Sign In</a>
         </div>
+        <p class="hero-note">
+            Built on Django, FastAPI, Celery, Redis, PostgreSQL, MongoDB, and secure imaging workflows.
+        </p>
     </div>
     <div class="hero-panel">
         <div class="metric-card">
@@ -28,6 +31,10 @@
         <div class="metric-card">
             <span>Security</span>
             <strong>JWT, RBAC, audit logging, S3 encryption</strong>
+        </div>
+        <div class="metric-card">
+            <span>Operations</span>
+            <strong>Docker, Nginx, CI validation, background workers</strong>
         </div>
     </div>
 </section>
@@ -49,5 +56,52 @@
         <h2>Infrastructure ready for scale</h2>
         <p>Dockerized services with PostgreSQL, MongoDB, Redis, Nginx, and background workers.</p>
     </article>
+</section>
+
+<section class="workflow-grid">
+    <article class="timeline-card">
+        <span class="eyebrow">1. Intake</span>
+        <h2>Patients upload scans and request care</h2>
+        <p>Capture images, appointment requests, and record context without switching systems.</p>
+    </article>
+    <article class="timeline-card">
+        <span class="eyebrow">2. Triage</span>
+        <h2>AI processing runs in the background</h2>
+        <p>Asynchronous preprocessing and model inference keep the main app responsive during uploads.</p>
+    </article>
+    <article class="timeline-card">
+        <span class="eyebrow">3. Review</span>
+        <h2>Doctors and radiologists complete the loop</h2>
+        <p>Records, diagnoses, prescriptions, approvals, and audit trails stay connected end to end.</p>
+    </article>
+</section>
+
+<section class="panel surface-grid">
+    <div class="section-header">
+        <div>
+            <span>Explore the platform</span>
+            <h2>Everything important is one click away</h2>
+        </div>
+    </div>
+    <div class="list-grid">
+        <article class="list-card">
+            <h3>Portal Experience</h3>
+            <p>Role-aware dashboards for patients, doctors, radiologists, and administrators.</p>
+            <a href="{% url 'portal-login' %}" class="ghost-link">Open portal</a>
+        </article>
+        <article class="list-card">
+            <h3>API Reference</h3>
+            <p>Inspect authentication, appointments, imaging, reporting, and audit endpoints in Swagger.</p>
+            <a href="/api/docs/" class="ghost-link">View docs</a>
+        </article>
+        <article class="list-card">
+            <h3>Operations</h3>
+            <p>Use the admin console for operational control and the utilities service for health monitoring.</p>
+            <div class="inline-actions">
+                <a href="/admin/" class="ghost-link">Admin</a>
+                <a href="/utils/" class="ghost-link">Utils</a>
+            </div>
+        </article>
+    </div>
 </section>
 {% endblock %}

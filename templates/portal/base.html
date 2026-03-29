@@ -44,5 +44,18 @@
     <main class="page-shell {% block page_class %}{% endblock %}">
         {% block content %}{% endblock %}
     </main>
+
+    <footer class="footer-bar">
+        <div>
+            <strong>CuraMind AI</strong>
+            <p>Connected imaging intake, AI triage, and clinician review built for secure healthcare operations.</p>
+        </div>
+        <div class="footer-links">
+            <a href="{% url 'portal-home' %}">Home</a>
+            <a href="{% url 'portal-login' %}">Portal</a>
+            <a href="/api/docs/">API Docs</a>
+            <a href="/admin/">Admin</a>
+        </div>
+    </footer>
 </body>
 </html>

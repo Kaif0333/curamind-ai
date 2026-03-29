@@ -19,6 +19,10 @@ from apps.reports.views import (
     ReportListView,
 )
 
+admin.site.site_header = "CuraMind AI Control Center"
+admin.site.site_title = "CuraMind AI Admin"
+admin.site.index_title = "Clinical operations and platform management"
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

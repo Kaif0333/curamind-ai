@@ -265,7 +265,8 @@ h3 {
 }
 
 .hero-panel,
-.summary-row {
+.summary-row,
+.workflow-grid {
     display: grid;
     gap: 1rem;
 }
@@ -317,9 +318,16 @@ h3 {
     margin-top: 2rem;
 }
 
+.workflow-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 2rem;
+}
+
 .feature-card,
 .panel,
-.list-card {
+.list-card,
+.timeline-card,
+.footer-bar {
     padding: 1.3rem;
 }
 
@@ -358,6 +366,50 @@ h3 {
     grid-template-columns: 1.1fr 0.9fr;
     align-items: center;
     min-height: 72vh;
+}
+
+.hero-note {
+    margin-top: 1.1rem;
+    color: var(--ink-soft);
+    font-size: 0.96rem;
+}
+
+.surface-grid {
+    margin-top: 2rem;
+}
+
+.timeline-card {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 244, 236, 0.92));
+    border: 1px solid var(--line);
+    border-radius: 1.5rem;
+    box-shadow: var(--shadow);
+}
+
+.footer-bar {
+    width: min(1180px, calc(100vw - 2rem));
+    margin: 0 auto 2.5rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem 2rem;
+    align-items: flex-start;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid var(--line);
+    border-radius: 1.5rem;
+    backdrop-filter: blur(12px);
+    box-shadow: var(--shadow);
+}
+
+.footer-bar p {
+    margin: 0.4rem 0 0;
+    max-width: 42rem;
+    color: var(--ink-soft);
+}
+
+.footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    align-items: center;
 }
 
 .auth-intro {
@@ -455,6 +507,7 @@ td {
     .dashboard-hero,
     .auth-layout,
     .feature-grid,
+    .workflow-grid,
     .dashboard-grid {
         grid-template-columns: 1fr;
     }
@@ -479,6 +532,12 @@ td {
 
     .page-shell {
         width: calc(100vw - 1rem);
+    }
+
+    .footer-bar {
+        width: calc(100vw - 1rem);
+        margin-bottom: 1rem;
+        flex-direction: column;
     }
 
     .hero h1,
