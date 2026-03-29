@@ -15,7 +15,12 @@ class DoctorPatientsView(APIView):
 
     @extend_schema(responses=PatientProfileSerializer(many=True))
     def get(self, request):
-        doctor_profile = request.user.doctor_profile
+        doctor_profile = getattr(request.user, "doctor_profile", None)
+        if not doctor_profile:
+            return Response(
+                {"detail": "Doctor profile is not provisioned for this account."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         patients = (
             PatientProfile.objects.filter(
                 Q(appointments__doctor=doctor_profile) | Q(medical_records__doctor=doctor_profile)

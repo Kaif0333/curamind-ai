@@ -102,6 +102,38 @@ def test_patient_can_view_diagnoses_and_prescriptions_for_own_record():
 
 
 @pytest.mark.django_db
+def test_medical_record_endpoints_require_provisioned_role_profiles():
+    patient_user = User.objects.create_user(
+        email="records-missing-patient-profile@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+    doctor_user = User.objects.create_user(
+        email="records-missing-doctor-profile@example.com",
+        password="StrongPass123",
+        role=User.Role.DOCTOR,
+    )
+
+    client = APIClient()
+
+    client.force_authenticate(user=patient_user)
+    patient_response = client.get("/patient/records")
+
+    client.force_authenticate(user=doctor_user)
+    create_response = client.post(
+        "/records/create",
+        {
+            "patient_id": "00000000-0000-0000-0000-000000000000",
+            "diagnosis_text": "Should not succeed",
+        },
+        format="json",
+    )
+
+    assert patient_response.status_code == 403
+    assert create_response.status_code == 403
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("role", [User.Role.RADIOLOGIST, User.Role.ADMIN])
 def test_non_care_team_roles_cannot_view_record_details(role):
     patient_user = User.objects.create_user(

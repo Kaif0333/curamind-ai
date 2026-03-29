@@ -16,6 +16,26 @@ from apps.doctors.models import DoctorProfile
 from apps.notifications.tasks import send_email_notification
 
 
+def _patient_profile_or_response(user):
+    patient_profile = getattr(user, "patient_profile", None)
+    if patient_profile:
+        return patient_profile, None
+    return None, Response(
+        {"detail": "Patient profile is not provisioned for this account."},
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
+def _doctor_profile_or_response(user):
+    doctor_profile = getattr(user, "doctor_profile", None)
+    if doctor_profile:
+        return doctor_profile, None
+    return None, Response(
+        {"detail": "Doctor profile is not provisioned for this account."},
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
 class AppointmentCreateView(APIView):
     serializer_class = AppointmentSerializer
 
@@ -23,9 +43,15 @@ class AppointmentCreateView(APIView):
     def get(self, request):
         user = request.user
         if user.role == User.Role.PATIENT:
-            appointments = Appointment.objects.filter(patient=user.patient_profile)
+            patient_profile, error = _patient_profile_or_response(user)
+            if error:
+                return error
+            appointments = Appointment.objects.filter(patient=patient_profile)
         elif user.role == User.Role.DOCTOR:
-            appointments = Appointment.objects.filter(doctor=user.doctor_profile)
+            doctor_profile, error = _doctor_profile_or_response(user)
+            if error:
+                return error
+            appointments = Appointment.objects.filter(doctor=doctor_profile)
         elif user.role == User.Role.ADMIN:
             appointments = Appointment.objects.all()
         else:
@@ -42,6 +68,9 @@ class AppointmentCreateView(APIView):
     def post(self, request):
         if request.user.role != User.Role.PATIENT:
             return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        patient_profile, error = _patient_profile_or_response(request.user)
+        if error:
+            return error
 
         serializer = AppointmentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -52,7 +81,7 @@ class AppointmentCreateView(APIView):
         if not doctor:
             return Response({"detail": "Doctor not found"}, status=status.HTTP_404_NOT_FOUND)
         appointment = Appointment.objects.create(
-            patient=request.user.patient_profile,
+            patient=patient_profile,
             doctor=doctor,
             scheduled_time=scheduled_time,
             reason=reason,
@@ -72,9 +101,10 @@ class AppointmentStatusUpdateView(APIView):
 
     @extend_schema(request=AppointmentStatusSerializer, responses=AppointmentSerializer)
     def patch(self, request, appointment_id: str):
-        appointment = Appointment.objects.filter(
-            id=appointment_id, doctor=request.user.doctor_profile
-        ).first()
+        doctor_profile, error = _doctor_profile_or_response(request.user)
+        if error:
+            return error
+        appointment = Appointment.objects.filter(id=appointment_id, doctor=doctor_profile).first()
         if not appointment:
             return Response({"detail": "Appointment not found"}, status=status.HTTP_404_NOT_FOUND)
         serializer = AppointmentStatusSerializer(appointment, data=request.data, partial=True)
@@ -95,9 +125,12 @@ class AppointmentCancelView(APIView):
 
     @extend_schema(responses=AppointmentSerializer)
     def patch(self, request, appointment_id: str):
+        patient_profile, error = _patient_profile_or_response(request.user)
+        if error:
+            return error
         appointment = Appointment.objects.filter(
             id=appointment_id,
-            patient=request.user.patient_profile,
+            patient=patient_profile,
         ).first()
         if not appointment:
             return Response({"detail": "Appointment not found"}, status=status.HTTP_404_NOT_FOUND)

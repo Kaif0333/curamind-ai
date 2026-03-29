@@ -85,6 +85,62 @@ def test_login_requires_mfa_and_can_be_completed_with_challenge():
 
 
 @pytest.mark.django_db
+def test_mfa_login_challenge_survives_invalid_code_and_enforces_client_binding():
+    secret = generate_mfa_secret()
+    user = User.objects.create_user(
+        email="mfa-login-retry@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+        mfa_enabled=True,
+        mfa_secret=secret,
+    )
+    PatientProfile.objects.create(user=user)
+
+    client = APIClient()
+    login_response = client.post(
+        "/auth/login",
+        {"email": user.email, "password": "StrongPass123"},
+        format="json",
+        REMOTE_ADDR="127.0.0.1",
+    )
+
+    challenge_token = login_response.data["challenge_token"]
+
+    invalid_verify = client.post(
+        "/auth/login/mfa-verify",
+        {"challenge_token": challenge_token, "code": "000000"},
+        format="json",
+        REMOTE_ADDR="127.0.0.1",
+    )
+    retry_verify = client.post(
+        "/auth/login/mfa-verify",
+        {"challenge_token": challenge_token, "code": pyotp.TOTP(secret).now()},
+        format="json",
+        REMOTE_ADDR="127.0.0.1",
+    )
+
+    second_login_response = client.post(
+        "/auth/login",
+        {"email": user.email, "password": "StrongPass123"},
+        format="json",
+        REMOTE_ADDR="127.0.0.1",
+    )
+    other_client_verify = client.post(
+        "/auth/login/mfa-verify",
+        {
+            "challenge_token": second_login_response.data["challenge_token"],
+            "code": pyotp.TOTP(secret).now(),
+        },
+        format="json",
+        REMOTE_ADDR="10.0.0.5",
+    )
+
+    assert invalid_verify.status_code == 400
+    assert retry_verify.status_code == 200
+    assert other_client_verify.status_code == 400
+
+
+@pytest.mark.django_db
 def test_portal_login_requires_mfa_when_enabled():
     secret = generate_mfa_secret()
     user = User.objects.create_user(

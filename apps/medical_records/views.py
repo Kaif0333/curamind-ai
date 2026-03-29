@@ -20,6 +20,26 @@ from apps.medical_records.serializers import (
 from apps.patients.models import PatientProfile
 
 
+def _patient_profile_or_response(user):
+    patient_profile = getattr(user, "patient_profile", None)
+    if patient_profile:
+        return patient_profile, None
+    return None, Response(
+        {"detail": "Patient profile is not provisioned for this account."},
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
+def _doctor_profile_or_response(user):
+    doctor_profile = getattr(user, "doctor_profile", None)
+    if doctor_profile:
+        return doctor_profile, None
+    return None, Response(
+        {"detail": "Doctor profile is not provisioned for this account."},
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
 def _get_record_for_user(user, record_id: str) -> MedicalRecord | None:
     record = (
         MedicalRecord.objects.filter(id=record_id)
@@ -43,8 +63,11 @@ class PatientRecordsView(APIView):
 
     @extend_schema(responses=MedicalRecordSerializer(many=True))
     def get(self, request):
+        patient_profile, error = _patient_profile_or_response(request.user)
+        if error:
+            return error
         records = (
-            MedicalRecord.objects.filter(patient=request.user.patient_profile)
+            MedicalRecord.objects.filter(patient=patient_profile)
             .select_related("patient", "doctor")
             .order_by("-created_at")
         )
@@ -60,10 +83,12 @@ class MedicalRecordCreateView(APIView):
     def post(self, request):
         serializer = MedicalRecordCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        doctor_profile, error = _doctor_profile_or_response(request.user)
+        if error:
+            return error
         patient = PatientProfile.objects.filter(id=serializer.validated_data["patient_id"]).first()
         if not patient:
             return Response({"detail": "Patient not found"}, status=status.HTTP_404_NOT_FOUND)
-        doctor_profile = request.user.doctor_profile
         is_assigned_patient = (
             Appointment.objects.filter(doctor=doctor_profile, patient=patient).exists()
             or MedicalRecord.objects.filter(doctor=doctor_profile, patient=patient).exists()

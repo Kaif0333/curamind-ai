@@ -149,3 +149,57 @@ def test_radiologist_cannot_list_appointments():
     response = client.get("/appointments")
 
     assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_patient_appointment_endpoints_require_patient_profile():
+    patient_user = User.objects.create_user(
+        email="patient-missing-profile@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=patient_user)
+
+    list_response = client.get("/appointments")
+    create_response = client.post(
+        "/appointments",
+        {
+            "doctor_id": "00000000-0000-0000-0000-000000000000",
+            "scheduled_time": "2030-01-01T10:00:00Z",
+            "reason": "Profile missing",
+        },
+        format="json",
+    )
+    cancel_response = client.patch(
+        "/appointments/00000000-0000-0000-0000-000000000000/cancel",
+        {},
+        format="json",
+    )
+
+    assert list_response.status_code == 403
+    assert create_response.status_code == 403
+    assert cancel_response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_doctor_appointment_endpoints_require_doctor_profile():
+    doctor_user = User.objects.create_user(
+        email="doctor-missing-profile@example.com",
+        password="StrongPass123",
+        role=User.Role.DOCTOR,
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=doctor_user)
+
+    list_response = client.get("/appointments")
+    update_response = client.patch(
+        "/appointments/00000000-0000-0000-0000-000000000000/status",
+        {"status": Appointment.Status.APPROVED},
+        format="json",
+    )
+
+    assert list_response.status_code == 403
+    assert update_response.status_code == 403

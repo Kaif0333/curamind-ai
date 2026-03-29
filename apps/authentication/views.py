@@ -16,6 +16,7 @@ from apps.authentication.mfa import (
     consume_login_challenge,
     create_login_challenge,
     generate_mfa_secret,
+    get_login_challenge,
     verify_mfa_code,
 )
 from apps.authentication.models import LoginAttempt, User
@@ -226,10 +227,18 @@ class MFALoginVerifyView(APIView):
         serializer = MFALoginVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        challenge = consume_login_challenge(serializer.validated_data["challenge_token"])
+        challenge = get_login_challenge(serializer.validated_data["challenge_token"])
         if not challenge:
             return Response(
                 {"detail": "Login challenge expired or is invalid."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        challenge_ip = challenge.get("ip_address") or ""
+        request_ip = request.META.get("REMOTE_ADDR") or ""
+        if challenge_ip and request_ip and challenge_ip != request_ip:
+            return Response(
+                {"detail": "Login challenge could not be validated from this client."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -242,6 +251,7 @@ class MFALoginVerifyView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        consume_login_challenge(serializer.validated_data["challenge_token"])
         refresh = LoginSerializer.get_token(user)
         LoginAttempt.objects.create(
             user=user,

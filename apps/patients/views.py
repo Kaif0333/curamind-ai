@@ -13,5 +13,10 @@ class PatientProfileView(APIView):
 
     @extend_schema(responses=PatientProfileSerializer)
     def get(self, request):
-        profile = request.user.patient_profile
+        profile = getattr(request.user, "patient_profile", None)
+        if not profile:
+            return Response(
+                {"detail": "Patient profile is not provisioned for this account."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         return Response(PatientProfileSerializer(profile).data, status=status.HTTP_200_OK)

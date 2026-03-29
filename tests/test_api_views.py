@@ -30,6 +30,21 @@ def test_patient_can_view_own_profile():
 
 
 @pytest.mark.django_db
+def test_patient_profile_endpoint_requires_provisioned_profile():
+    user = User.objects.create_user(
+        email="profile-missing@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+    response = client.get("/patients/me")
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_doctor_can_view_unique_assigned_patients():
     patient_user = User.objects.create_user(
         email="doctor-patient@example.com",
@@ -64,6 +79,21 @@ def test_doctor_can_view_unique_assigned_patients():
     assert response.status_code == 200
     assert len(response.data) == 1
     assert str(response.data[0]["user"]) == str(patient_user.id)
+
+
+@pytest.mark.django_db
+def test_doctor_patients_endpoint_requires_provisioned_doctor_profile():
+    doctor_user = User.objects.create_user(
+        email="doctor-missing-patients-profile@example.com",
+        password="StrongPass123",
+        role=User.Role.DOCTOR,
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=doctor_user)
+    response = client.get("/doctor/patients")
+
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db
