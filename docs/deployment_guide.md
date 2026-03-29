@@ -14,16 +14,22 @@ sudo TARGET_USER=ubuntu APP_DIR=/opt/curamind-ai ./scripts/ec2_bootstrap.sh
 
 2. Clone the repository to the EC2 instance.
 3. Copy `.env.example` to `.env` and fill in production values.
-4. Build and start services:
+4. Validate the production environment file:
+
+```bash
+./scripts/validate_production_env.sh .env
+```
+
+5. Build and start services:
 
 ```bash
 docker compose up -d --build
 ```
 
-5. Configure Nginx certificates:
+6. Configure Nginx certificates:
 - Mount certs into `/etc/nginx/certs/` as `fullchain.pem` and `privkey.pem`.
 
-6. Verify services:
+7. Verify services:
 - Django direct: `http://<server>:8000/`
 - FastAPI direct: `http://<server>:8001/`
 - Flask utils direct: `http://<server>:8002/`
@@ -36,10 +42,16 @@ docker compose up -d --build
   - `http://<server>/ai/ready`
   - `http://<server>/ai/model-info`
 
-7. Run the post-deployment smoke check:
+8. Run the post-deployment smoke check:
 
 ```bash
 ./scripts/post_deploy_healthcheck.sh https://your-domain-or-ip
+```
+
+9. Optional one-command deployment helper:
+
+```bash
+BASE_URL=https://your-domain-or-ip ./scripts/deploy_ec2.sh .env
 ```
 
 ## Environment Variables
@@ -53,6 +65,9 @@ docker compose up -d --build
 - `AI_MAX_UPLOAD_MB=25`
 - `AI_MODEL_NAME=resnet50`
 - `AI_MODEL_VERSION=demo-resnet50-v1`
+- `AI_SERVICE_TIMEOUT_SECONDS=120`
+- `AI_SERVICE_RETRY_COUNT=2`
+- `AI_SERVICE_RETRY_BACKOFF_SECONDS=1`
 - `MFA_ISSUER=CuraMind AI`
 - `MFA_CHALLENGE_TTL=300`
 
@@ -67,3 +82,5 @@ docker compose up -d --build
 - Docker Compose healthchecks gate service startup so Django, FastAPI, and Nginx wait for dependencies to become healthy.
 - `/readyz` validates Django database and cache connectivity before marking the service ready.
 - `/ai/ready` validates AI model warmup and MongoDB connectivity before marking inference ready.
+- AI result and metadata documents are upserted by `image_id` to avoid stale duplicate inference records.
+- Use `scripts/backup_postgres.sh`, `scripts/restore_postgres.sh`, `scripts/backup_mongodb.sh`, and `scripts/restore_mongodb.sh` for operational backup workflows.

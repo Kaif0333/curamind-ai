@@ -118,19 +118,25 @@ def test_fastapi_mongo_get_ai_result(monkeypatch):
     fastapi_mongo = _fastapi_mongo_module()
 
     class FakeCollection:
-        def find_one(self, query):
+        def create_index(self, *_args, **_kwargs):
+            return "idx"
+
+        def find_one(self, query, sort=None):
             if query == {"image_id": "img-1"}:
                 return {"_id": "mongo-id", "result": {"score": 0.8}}
             return None
 
     class FakeDB:
         ai_results = FakeCollection()
+        image_metadata = FakeCollection()
+        processing_logs = FakeCollection()
 
     class FakeClient:
         def __getitem__(self, _name):
             return FakeDB()
 
     monkeypatch.setattr(fastapi_mongo, "_client", lambda: FakeClient())
+    fastapi_mongo.ensure_indexes.cache_clear()
 
     assert fastapi_mongo.get_ai_result("img-1") == {"score": 0.8}
     assert fastapi_mongo.get_ai_result("missing") is None
@@ -139,11 +145,23 @@ def test_fastapi_mongo_get_ai_result(monkeypatch):
 def test_fastapi_mongo_check_connection(monkeypatch):
     fastapi_mongo = _fastapi_mongo_module()
 
+    class FakeCollection:
+        def create_index(self, *_args, **_kwargs):
+            return "idx"
+
+    class HealthyDB:
+        ai_results = FakeCollection()
+        image_metadata = FakeCollection()
+        processing_logs = FakeCollection()
+
     class HealthyClient:
         class admin:
             @staticmethod
             def command(_name):
                 return {"ok": 1}
+
+        def __getitem__(self, _name):
+            return HealthyDB()
 
     class BrokenClient:
         class admin:
@@ -151,10 +169,15 @@ def test_fastapi_mongo_check_connection(monkeypatch):
             def command(_name):
                 raise fastapi_mongo.PyMongoError("down")
 
+        def __getitem__(self, _name):
+            return HealthyDB()
+
     monkeypatch.setattr(fastapi_mongo, "_client", lambda: HealthyClient())
+    fastapi_mongo.ensure_indexes.cache_clear()
     assert fastapi_mongo.check_mongo_connection() is True
 
     monkeypatch.setattr(fastapi_mongo, "_client", lambda: BrokenClient())
+    fastapi_mongo.ensure_indexes.cache_clear()
     assert fastapi_mongo.check_mongo_connection() is False
 
 

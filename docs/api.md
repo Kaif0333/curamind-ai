@@ -28,6 +28,9 @@
 - `GET /ai/logs?image_id=<id>`
 
 ## FastAPI Endpoints
+- `GET /health`
+- `GET /ready`
+- `GET /model-info`
 - `POST /analyze-image`
 - `GET /ai-result?image_id=<id>`
 
@@ -43,3 +46,4 @@
 - Medical image downloads are protected and no longer rely on public media URLs.
 - DICOM uploads are de-identified before they are persisted.
 - MFA is available through both the API and the portal security page.
+- The inference service retries transient upstream request failures before marking an analysis as failed.

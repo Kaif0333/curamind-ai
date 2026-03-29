@@ -89,6 +89,10 @@ Docker Compose now includes service healthchecks for PostgreSQL, MongoDB, Redis,
 
 ## AWS / Ops Helpers
 - `scripts/ec2_bootstrap.sh` installs Docker, Docker Compose, and prepares an Ubuntu EC2 host
+- `scripts/validate_production_env.sh` verifies required production env vars and secure settings
+- `scripts/deploy_ec2.sh` builds, starts, and smoke-checks the stack on an EC2 host
+- `scripts/backup_postgres.sh` and `scripts/restore_postgres.sh` back up and restore PostgreSQL
+- `scripts/backup_mongodb.sh` and `scripts/restore_mongodb.sh` back up and restore MongoDB
 - `scripts/post_deploy_healthcheck.sh` runs a post-deployment smoke check against the key health endpoints
 
 ## Deployment Configuration
@@ -97,6 +101,9 @@ Docker Compose now includes service healthchecks for PostgreSQL, MongoDB, Redis,
   - `AI_MAX_UPLOAD_MB`
   - `AI_MODEL_NAME`
   - `AI_MODEL_VERSION`
+  - `AI_SERVICE_TIMEOUT_SECONDS`
+  - `AI_SERVICE_RETRY_COUNT`
+  - `AI_SERVICE_RETRY_BACKOFF_SECONDS`
 - Django upload validation knob:
   - `MAX_UPLOAD_MB`
 

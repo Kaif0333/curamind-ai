@@ -39,6 +39,16 @@ class _InvalidJSONResponse(_FakeResponse):
         raise ValueError("bad json")
 
 
+class _StatusErrorResponse(_FakeResponse):
+    def __init__(self, status_code: int):
+        super().__init__({})
+        self.status_code = status_code
+
+    def raise_for_status(self):
+        response = type("Response", (), {"status_code": self.status_code})()
+        raise RequestException("request failed", response=response)
+
+
 @pytest.mark.django_db
 def test_user_manager_and_model_strings():
     with pytest.raises(ValueError):
@@ -106,6 +116,37 @@ def test_request_inference_rejects_transport_and_payload_failures(monkeypatch):
         request_inference(b"img-bytes", "image-payload")
 
 
+def test_request_inference_retries_transient_service_failures(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_post(*args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] < 3:
+            return _StatusErrorResponse(503)
+        return _FakeResponse(
+            {
+                "anomaly_probability": 0.44,
+                "heatmap": "abc",
+                "model": "resnet50",
+                "model_version": "demo-resnet50-v1",
+                "device": "cpu",
+            }
+        )
+
+    monkeypatch.setattr("apps.ai_engine.service.requests.post", fake_post)
+    monkeypatch.setattr("apps.ai_engine.service.time.sleep", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("apps.ai_engine.service.AI_SERVICE_RETRY_COUNT", 2)
+    monkeypatch.setattr(
+        "apps.ai_engine.service.store_ai_result",
+        lambda *_args, **_kwargs: None,
+    )
+
+    payload = request_inference(b"img-bytes", "image-retry")
+
+    assert payload["anomaly_probability"] == 0.44
+    assert calls["count"] == 3
+
+
 def test_send_email_notification_handles_empty_recipient_and_failures(monkeypatch):
     send_email_notification("", "Subject", "Body")
 
@@ -169,18 +210,33 @@ def test_s3_storage_service_raises_storage_error(settings, monkeypatch, tmp_path
 
 def test_ai_mongo_helpers(monkeypatch):
     inserted_docs = {"ai_results": [], "image_metadata": [], "processing_logs": []}
+    created_indexes = []
 
     class FakeCollection:
         def __init__(self, name):
             self.name = name
 
+        def create_index(self, keys, **kwargs):
+            created_indexes.append((self.name, keys, kwargs))
+            return f"{self.name}-index"
+
+        def replace_one(self, query, doc, upsert=False):
+            assert upsert is True
+            inserted_docs[self.name].append({"query": query, "doc": doc})
+            return type("WriteResult", (), {"upserted_id": f"{self.name}-id"})()
+
         def insert_one(self, doc):
             inserted_docs[self.name].append(doc)
             return type("Inserted", (), {"inserted_id": f"{self.name}-id"})()
 
-        def find_one(self, query):
+        def find_one(self, query, sort=None):
             if self.name == "ai_results" and query == {"image_id": "img-1"}:
-                return {"_id": "mongo-id", "image_id": "img-1", "result": {"score": 0.9}}
+                latest = inserted_docs[self.name][-1]["doc"] if inserted_docs[self.name] else {}
+                return {
+                    "_id": "mongo-id",
+                    "image_id": "img-1",
+                    "result": latest.get("result", {"score": 0.9}),
+                }
             return None
 
         def find(self, query):
@@ -196,6 +252,7 @@ def test_ai_mongo_helpers(monkeypatch):
         processing_logs = FakeCollection("processing_logs")
 
     monkeypatch.setattr(ai_mongo, "get_db", lambda: FakeDB())
+    ai_mongo.ensure_indexes.cache_clear()
 
     assert ai_mongo.store_ai_result("img-1", {"score": 0.9}) == "ai_results-id"
     assert ai_mongo.store_image_metadata("img-1", {"Modality": "MRI"}) == "image_metadata-id"
@@ -203,6 +260,7 @@ def test_ai_mongo_helpers(monkeypatch):
     assert ai_mongo.get_ai_result_by_image("img-1")["result"]["score"] == 0.9
     assert ai_mongo.get_ai_result_by_id("not-an-object-id") is None
     assert ai_mongo.get_processing_logs_by_image("img-1")[0]["_id"] == "1"
+    assert created_indexes
 
 
 def test_ai_mongo_returns_safe_defaults_on_driver_errors(monkeypatch):

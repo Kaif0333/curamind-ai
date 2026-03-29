@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import logging
 import os
+import time
 
 import requests
-from requests import RequestException
+from requests import HTTPError, RequestException
 
 from apps.ai_engine.mongo import store_ai_result
 
+logger = logging.getLogger(__name__)
 AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://fastapi:8001")
+AI_SERVICE_TIMEOUT_SECONDS = float(os.getenv("AI_SERVICE_TIMEOUT_SECONDS", "120"))
+AI_SERVICE_RETRY_COUNT = max(0, int(os.getenv("AI_SERVICE_RETRY_COUNT", "2")))
+AI_SERVICE_RETRY_BACKOFF_SECONDS = float(os.getenv("AI_SERVICE_RETRY_BACKOFF_SECONDS", "1"))
 REQUIRED_RESULT_FIELDS = {"anomaly_probability", "heatmap", "model"}
 
 
@@ -21,6 +27,15 @@ class AIServiceRequestError(AIInferenceError):
 
 class AIServiceResponseError(AIInferenceError):
     """Raised when the inference service returns malformed or incomplete data."""
+
+
+def _should_retry_request(exc: RequestException) -> bool:
+    if isinstance(exc, HTTPError) and exc.response is not None:
+        return exc.response.status_code >= 500
+    response = getattr(exc, "response", None)
+    if response is not None:
+        return response.status_code >= 500
+    return True
 
 
 def _validate_inference_payload(payload: dict) -> dict:
@@ -55,15 +70,31 @@ def _validate_inference_payload(payload: dict) -> dict:
 
 
 def request_inference(image_bytes: bytes, image_id: str) -> dict:
-    try:
-        response = requests.post(
-            f"{AI_SERVICE_URL}/analyze-image",
-            files={"file": ("image.bin", image_bytes, "application/octet-stream")},
-            timeout=120,
-        )
-        response.raise_for_status()
-    except RequestException as exc:
-        raise AIServiceRequestError("AI inference service request failed.") from exc
+    response = None
+    last_error: RequestException | None = None
+    for attempt in range(AI_SERVICE_RETRY_COUNT + 1):
+        try:
+            response = requests.post(
+                f"{AI_SERVICE_URL}/analyze-image",
+                files={"file": ("image.bin", image_bytes, "application/octet-stream")},
+                timeout=AI_SERVICE_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            break
+        except RequestException as exc:
+            last_error = exc
+            if attempt >= AI_SERVICE_RETRY_COUNT or not _should_retry_request(exc):
+                raise AIServiceRequestError("AI inference service request failed.") from exc
+            backoff_seconds = AI_SERVICE_RETRY_BACKOFF_SECONDS * (2**attempt)
+            logger.warning(
+                "Retrying AI inference request for image %s after transient failure on attempt %s",
+                image_id,
+                attempt + 1,
+            )
+            time.sleep(backoff_seconds)
+
+    if response is None:
+        raise AIServiceRequestError("AI inference service request failed.") from last_error
 
     try:
         payload = response.json()

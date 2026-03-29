@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+import logging
 import os
+import time
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
 from .model import get_model_metadata, predict_image, warmup_model
-from .mongo import check_mongo_connection, get_ai_result
+from .mongo import check_mongo_connection, ensure_indexes, get_ai_result
 
-app = FastAPI(title="CuraMind AI Inference Service")
+logger = logging.getLogger(__name__)
 MAX_UPLOAD_MB = int(os.getenv("AI_MAX_UPLOAD_MB", "25"))
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 SUPPORTED_CONTENT_TYPES = {
@@ -18,6 +21,22 @@ SUPPORTED_CONTENT_TYPES = {
     "image/jpg",
     "image/png",
 }
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    try:
+        metadata = warmup_model()
+        logger.info("AI model warmed up: %s", metadata)
+    except Exception:
+        logger.exception("AI model warmup failed during startup")
+
+    if not ensure_indexes():
+        logger.warning("MongoDB index initialization did not complete successfully")
+    yield
+
+
+app = FastAPI(title="CuraMind AI Inference Service", lifespan=lifespan)
 
 
 @app.get("/health")
@@ -59,6 +78,7 @@ async def model_info():
 
 @app.post("/analyze-image")
 async def analyze_image(file: UploadFile = File(...)):
+    started_at = time.perf_counter()
     if file.content_type and file.content_type.lower() not in SUPPORTED_CONTENT_TYPES:
         raise HTTPException(status_code=415, detail="Unsupported file type")
     content = await file.read()
@@ -73,7 +93,8 @@ async def analyze_image(file: UploadFile = File(...)):
         result = predict_image(content)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return JSONResponse(result)
+    duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
+    return JSONResponse(result, headers={"X-Process-Time-Ms": str(duration_ms)})
 
 
 @app.get("/ai-result")

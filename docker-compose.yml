@@ -52,6 +52,9 @@ services:
       MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017}
       MONGO_DB_NAME: ${MONGO_DB_NAME:-curamind}
       AI_SERVICE_URL: ${AI_SERVICE_URL:-http://fastapi:8001}
+      AI_SERVICE_TIMEOUT_SECONDS: ${AI_SERVICE_TIMEOUT_SECONDS:-120}
+      AI_SERVICE_RETRY_COUNT: ${AI_SERVICE_RETRY_COUNT:-2}
+      AI_SERVICE_RETRY_BACKOFF_SECONDS: ${AI_SERVICE_RETRY_BACKOFF_SECONDS:-1}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
       CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost,http://127.0.0.1,http://localhost:8000,http://127.0.0.1:8000,https://localhost,https://127.0.0.1}
     depends_on:
@@ -127,6 +130,9 @@ services:
       MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017}
       MONGO_DB_NAME: ${MONGO_DB_NAME:-curamind}
       AI_SERVICE_URL: ${AI_SERVICE_URL:-http://fastapi:8001}
+      AI_SERVICE_TIMEOUT_SECONDS: ${AI_SERVICE_TIMEOUT_SECONDS:-120}
+      AI_SERVICE_RETRY_COUNT: ${AI_SERVICE_RETRY_COUNT:-2}
+      AI_SERVICE_RETRY_BACKOFF_SECONDS: ${AI_SERVICE_RETRY_BACKOFF_SECONDS:-1}
     volumes:
       - media_data:/app/media
     depends_on:

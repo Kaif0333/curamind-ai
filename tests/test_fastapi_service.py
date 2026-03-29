@@ -31,6 +31,7 @@ setattr(
 fake_mongo = types.ModuleType("backend.ai_service_fastapi.mongo")
 setattr(fake_mongo, "get_ai_result", lambda image_id: None)
 setattr(fake_mongo, "check_mongo_connection", lambda: True)
+setattr(fake_mongo, "ensure_indexes", lambda: True)
 
 sys.modules["backend.ai_service_fastapi.model"] = fake_model
 sys.modules["backend.ai_service_fastapi.mongo"] = fake_mongo
@@ -59,6 +60,7 @@ def test_analyze_image_returns_prediction(monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["model"] == "resnet50"
+    assert "X-Process-Time-Ms" in response.headers
 
 
 def test_health_and_model_info_endpoints(monkeypatch):
