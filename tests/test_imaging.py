@@ -11,6 +11,7 @@ from rest_framework.test import APIClient
 from apps.authentication.models import User
 from apps.imaging.models import MedicalImage
 from apps.imaging.storage import S3StorageService
+from apps.imaging.storage import StorageError
 from apps.imaging.tasks import ai_inference_task
 from apps.patients.models import PatientProfile
 
@@ -302,3 +303,31 @@ def test_admin_cannot_download_patient_image():
     response = client.get(f"/imaging/{image.id}/download")
 
     assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_image_upload_returns_400_when_storage_fails(monkeypatch):
+    user = User.objects.create_user(
+        email="patient-storage-fail@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+    PatientProfile.objects.create(user=user)
+
+    png_bytes = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lE"
+        "QVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+    )
+    upload = SimpleUploadedFile("fail.png", png_bytes, content_type="image/png")
+
+    monkeypatch.setattr(
+        "apps.imaging.services.S3StorageService.upload",
+        lambda self, file_obj, key: (_ for _ in ()).throw(StorageError("storage down")),
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+    response = client.post("/upload-image", {"file": upload}, format="multipart")
+
+    assert response.status_code == 400
+    assert response.data["detail"] == "Unable to store the uploaded image right now."

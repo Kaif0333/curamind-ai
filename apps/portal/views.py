@@ -17,8 +17,8 @@ from apps.audit_logs.models import AuditLog
 from apps.audit_logs.utils import log_action
 from apps.authentication.mfa import build_mfa_provisioning_uri, generate_mfa_secret, verify_mfa_code
 from apps.authentication.models import LoginAttempt, User
+from apps.authentication.serializers import RegisterSerializer
 from apps.authentication.views import LOGIN_ATTEMPT_TTL, MAX_LOGIN_ATTEMPTS, _attempt_key
-from apps.doctors.models import DoctorProfile
 from apps.imaging.access import get_authorized_image_for_user
 from apps.imaging.models import MedicalImage
 from apps.imaging.services import handle_image_upload
@@ -182,18 +182,17 @@ def register_view(request: HttpRequest):
 
     form = RegisterForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        role = form.cleaned_data["role"]
-        user = User.objects.create_user(
-            email=form.cleaned_data["email"],
-            password=form.cleaned_data["password"],
-            first_name=form.cleaned_data.get("first_name", ""),
-            last_name=form.cleaned_data.get("last_name", ""),
-            role=role,
+        serializer = RegisterSerializer(
+            data={
+                "email": form.cleaned_data["email"],
+                "password": form.cleaned_data["password"],
+                "first_name": form.cleaned_data.get("first_name", ""),
+                "last_name": form.cleaned_data.get("last_name", ""),
+                "role": form.cleaned_data["role"],
+            }
         )
-        if role == User.Role.PATIENT:
-            PatientProfile.objects.create(user=user)
-        elif role in {User.Role.DOCTOR, User.Role.RADIOLOGIST}:
-            DoctorProfile.objects.create(user=user, specialty="")
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
         log_action(user, "register", request, resource_id=str(user.id))
         messages.success(request, "Account created. Please sign in.")
         return redirect("portal-login")

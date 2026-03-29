@@ -12,7 +12,7 @@ from apps.ai_engine.mongo import store_image_metadata, store_processing_log
 from apps.audit_logs.utils import log_action
 from apps.authentication.models import User
 from apps.imaging.models import MedicalImage
-from apps.imaging.storage import S3StorageService
+from apps.imaging.storage import S3StorageService, StorageError
 from apps.imaging.tasks import queue_image_processing
 from apps.imaging.utils import (
     deidentify_dicom_bytes,
@@ -32,6 +32,9 @@ def handle_image_upload(
     modality: str = "",
 ) -> MedicalImage:
     validate_upload(upload.name, upload.content_type or "", upload.size, MAX_UPLOAD_MB)
+    patient_profile = getattr(user, "patient_profile", None)
+    if patient_profile is None:
+        raise ValueError("Patient profile not found for the uploading user.")
 
     file_bytes = upload.read()
     metadata: dict[str, str] = {}
@@ -44,10 +47,14 @@ def handle_image_upload(
 
     storage = S3StorageService()
     key = storage.build_key(upload.name)
-    stored_key = storage.upload(BytesIO(file_bytes), key)
+    try:
+        stored_key = storage.upload(BytesIO(file_bytes), key)
+    except StorageError as exc:
+        logger.exception("Failed to store image %s", upload.name)
+        raise ValueError("Unable to store the uploaded image right now.") from exc
 
     image = MedicalImage.objects.create(
-        patient=user.patient_profile,
+        patient=patient_profile,
         uploaded_by=user,
         file_name=upload.name,
         s3_key=stored_key,

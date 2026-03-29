@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from typing import cast
 
 from django.contrib.auth import authenticate
@@ -9,30 +8,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from apps.authentication.mfa import normalize_mfa_code
 from apps.authentication.models import User
-
-
-def _self_assignable_roles() -> set[str]:
-    allow_roles = os.getenv("ALLOW_SELF_ASSIGN_ROLES", "false").lower() == "true"
-    if not allow_roles:
-        return {cast(str, User.Role.PATIENT)}
-
-    configured_roles = {
-        role.strip()
-        for role in os.getenv(
-            "SELF_ASSIGNABLE_ROLES",
-            ",".join(
-                [
-                    cast(str, User.Role.PATIENT),
-                    cast(str, User.Role.DOCTOR),
-                    cast(str, User.Role.RADIOLOGIST),
-                    cast(str, User.Role.NURSE),
-                ]
-            ),
-        ).split(",")
-        if role.strip()
-    }
-    configured_roles.discard(cast(str, User.Role.ADMIN))
-    return configured_roles or {cast(str, User.Role.PATIENT)}
+from apps.authentication.roles import get_self_assignable_roles
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -49,7 +25,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ("email", "password", "first_name", "last_name", "role")
 
     def validate_role(self, value: str) -> str:
-        if value in _self_assignable_roles():
+        if value in get_self_assignable_roles():
             return value
         return cast(str, User.Role.PATIENT)
 

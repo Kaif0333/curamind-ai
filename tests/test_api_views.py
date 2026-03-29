@@ -67,6 +67,36 @@ def test_doctor_can_view_unique_assigned_patients():
 
 
 @pytest.mark.django_db
+def test_doctor_patients_includes_patients_from_existing_records_without_appointments():
+    patient_user = User.objects.create_user(
+        email="doctor-record-patient@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+    patient_profile = PatientProfile.objects.create(user=patient_user)
+
+    doctor_user = User.objects.create_user(
+        email="doctor-record-owner@example.com",
+        password="StrongPass123",
+        role=User.Role.DOCTOR,
+    )
+    doctor_profile = DoctorProfile.objects.create(user=doctor_user, specialty="Cardiology")
+    MedicalRecord.objects.create(
+        patient=patient_profile,
+        doctor=doctor_profile,
+        diagnosis_text="Existing record without appointment",
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=doctor_user)
+    response = client.get("/doctor/patients")
+
+    assert response.status_code == 200
+    assert len(response.data) == 1
+    assert str(response.data[0]["user"]) == str(patient_user.id)
+
+
+@pytest.mark.django_db
 def test_patient_can_view_ai_result_for_own_image(monkeypatch):
     patient_user = User.objects.create_user(
         email="ai-result-patient@example.com",

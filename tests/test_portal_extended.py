@@ -56,6 +56,31 @@ def test_portal_login_logout_and_register_flow():
 
 
 @pytest.mark.django_db
+def test_portal_register_honors_configured_self_assignable_roles(monkeypatch):
+    monkeypatch.setenv("ALLOW_SELF_ASSIGN_ROLES", "true")
+    monkeypatch.setenv("SELF_ASSIGNABLE_ROLES", "patient,doctor")
+
+    client = Client()
+    response = client.post(
+        reverse("portal-register"),
+        {
+            "email": "portal-doctor-register@example.com",
+            "password": "StrongPass123",
+            "first_name": "Portal",
+            "last_name": "Doctor",
+            "role": User.Role.DOCTOR,
+        },
+        follow=False,
+    )
+
+    user = User.objects.get(email="portal-doctor-register@example.com")
+
+    assert response.status_code == 302
+    assert user.role == User.Role.DOCTOR
+    assert hasattr(user, "doctor_profile")
+
+
+@pytest.mark.django_db
 def test_portal_login_rate_limit_and_missing_mfa_challenge():
     user = User.objects.create_user(
         email="portal-rate-limit@example.com",
@@ -217,6 +242,42 @@ def test_doctor_portal_dashboard_and_actions():
     assert Diagnosis.objects.filter(medical_record=record, text__icontains="detail").exists()
     assert Prescription.objects.filter(medical_record=record, medication_name="Ibuprofen").exists()
     assert Report.objects.filter(medical_record=record, author=doctor_user).exists()
+
+
+@pytest.mark.django_db
+def test_portal_doctor_can_create_record_for_patient_already_assigned_by_existing_record_only():
+    patient_user = User.objects.create_user(
+        email="portal-existing-record-patient@example.com",
+        password="StrongPass123",
+        role=User.Role.PATIENT,
+    )
+    patient_profile = PatientProfile.objects.create(user=patient_user)
+    doctor_user = User.objects.create_user(
+        email="portal-existing-record-doctor@example.com",
+        password="StrongPass123",
+        role=User.Role.DOCTOR,
+    )
+    doctor_profile = DoctorProfile.objects.create(user=doctor_user, specialty="General")
+    MedicalRecord.objects.create(
+        patient=patient_profile,
+        doctor=doctor_profile,
+        diagnosis_text="Existing doctor assignment",
+    )
+
+    client = Client()
+    client.force_login(doctor_user)
+    response = client.post(
+        reverse("portal-create-record"),
+        {"patient": str(patient_profile.id), "diagnosis_text": "Follow-up doctor note"},
+        follow=False,
+    )
+
+    assert response.status_code == 302
+    assert MedicalRecord.objects.filter(
+        patient=patient_profile,
+        doctor=doctor_profile,
+        diagnosis_text="Follow-up doctor note",
+    ).exists()
 
 
 @pytest.mark.django_db

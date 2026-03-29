@@ -4,9 +4,11 @@ import os
 
 from django import forms
 from django.contrib.auth import authenticate
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.authentication.models import User
+from apps.authentication.roles import get_self_assignable_role_choices
 from apps.appointments.models import Appointment
 from apps.doctors.models import DoctorProfile
 from apps.medical_records.models import MedicalRecord
@@ -40,7 +42,11 @@ class RegisterForm(forms.Form):
     first_name = forms.CharField(required=False)
     last_name = forms.CharField(required=False)
     password = forms.CharField(widget=forms.PasswordInput)
-    role = forms.ChoiceField(choices=[(User.Role.PATIENT, "Patient")], required=False)
+    role = forms.ChoiceField(choices=(), required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["role"].choices = get_self_assignable_role_choices()
 
     def clean_role(self):
         allow_roles = os.getenv("ALLOW_SELF_ASSIGN_ROLES", "false").lower() == "true"
@@ -89,7 +95,9 @@ class MedicalRecordCreateForm(forms.ModelForm):
         queryset = PatientProfile.objects.none()
         if user and getattr(user, "doctor_profile", None):
             doctor_profile = user.doctor_profile
-            queryset = PatientProfile.objects.filter(appointments__doctor=doctor_profile).distinct()
+            queryset = PatientProfile.objects.filter(
+                Q(appointments__doctor=doctor_profile) | Q(medical_records__doctor=doctor_profile)
+            ).distinct()
         self.fields["patient"].queryset = queryset.select_related("user")
 
     def clean_patient(self):
