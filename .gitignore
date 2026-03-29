@@ -12,6 +12,9 @@ env/
 db.sqlite3
 media/
 staticfiles/
+.coverage
+coverage.xml
+schema.yml
 
 # IDE
 .vscode/
