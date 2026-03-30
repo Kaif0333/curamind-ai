@@ -7,6 +7,11 @@ class AIResultSerializer(serializers.Serializer):
     model = serializers.CharField()
     model_version = serializers.CharField(required=False, allow_blank=True)
     device = serializers.CharField(required=False, allow_blank=True)
+    model_registry = serializers.CharField(required=False, allow_blank=True)
+    weights_sha256 = serializers.CharField(required=False, allow_blank=True)
+    input_sha256 = serializers.CharField(required=False, allow_blank=True)
+    image_id = serializers.CharField(required=False, allow_blank=True)
+    service_processing_ms = serializers.FloatField(required=False)
 
 
 class AIProcessingLogSerializer(serializers.Serializer):

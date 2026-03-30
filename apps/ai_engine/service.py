@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import time
@@ -59,12 +60,27 @@ def _validate_inference_payload(payload: dict) -> dict:
     if not isinstance(payload["heatmap"], str) or not isinstance(payload["model"], str):
         raise AIServiceResponseError("AI inference service returned malformed result fields.")
 
-    for optional_field in ("model_version", "device"):
+    for optional_field in (
+        "model_version",
+        "device",
+        "model_registry",
+        "weights_sha256",
+        "input_sha256",
+        "image_id",
+    ):
         if optional_field in payload and payload[optional_field] is not None:
             if not isinstance(payload[optional_field], str):
                 raise AIServiceResponseError(
                     f"AI inference service returned an invalid {optional_field}."
                 )
+
+    if "service_processing_ms" in payload and payload["service_processing_ms"] is not None:
+        try:
+            payload["service_processing_ms"] = float(payload["service_processing_ms"])
+        except (TypeError, ValueError) as exc:
+            raise AIServiceResponseError(
+                "AI inference service returned an invalid service_processing_ms."
+            ) from exc
 
     return payload
 
@@ -72,10 +88,15 @@ def _validate_inference_payload(payload: dict) -> dict:
 def request_inference(image_bytes: bytes, image_id: str) -> dict:
     response = None
     last_error: RequestException | None = None
+    image_sha256 = hashlib.sha256(image_bytes).hexdigest()
     for attempt in range(AI_SERVICE_RETRY_COUNT + 1):
         try:
             response = requests.post(
                 f"{AI_SERVICE_URL}/analyze-image",
+                headers={
+                    "X-Image-Id": image_id,
+                    "X-Image-SHA256": image_sha256,
+                },
                 files={"file": ("image.bin", image_bytes, "application/octet-stream")},
                 timeout=AI_SERVICE_TIMEOUT_SECONDS,
             )
@@ -102,5 +123,21 @@ def request_inference(image_bytes: bytes, image_id: str) -> dict:
         raise AIServiceResponseError("AI inference service returned invalid JSON.") from exc
 
     payload = _validate_inference_payload(payload)
+    payload.setdefault("image_id", image_id)
+    payload.setdefault(
+        "input_sha256",
+        response.headers.get("X-Image-SHA256", image_sha256),
+    )
+    if "service_processing_ms" not in payload:
+        process_time_header = response.headers.get("X-Process-Time-Ms")
+        if process_time_header:
+            try:
+                payload["service_processing_ms"] = float(process_time_header)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "AI inference service returned a non-numeric "
+                    "X-Process-Time-Ms header for image %s",
+                    image_id,
+                )
     store_ai_result(image_id, payload)
     return payload

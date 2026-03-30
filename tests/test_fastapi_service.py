@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib
 import sys
 import types
@@ -21,12 +22,26 @@ setattr(
 setattr(
     fake_model,
     "get_model_metadata",
-    lambda: {"model": "resnet50", "model_version": "demo", "device": "cpu"},
+    lambda: {
+        "model": "resnet50",
+        "model_version": "demo",
+        "device": "cpu",
+        "model_registry": "local-demo",
+        "weights_sha256": "weights-sha",
+        "ready": True,
+    },
 )
 setattr(
     fake_model,
     "warmup_model",
-    lambda: {"model": "resnet50", "model_version": "demo", "device": "cpu"},
+    lambda: {
+        "model": "resnet50",
+        "model_version": "demo",
+        "device": "cpu",
+        "model_registry": "local-demo",
+        "weights_sha256": "weights-sha",
+        "ready": True,
+    },
 )
 fake_mongo = types.ModuleType("backend.ai_service_fastapi.mongo")
 setattr(fake_mongo, "get_ai_result", lambda image_id: None)
@@ -50,24 +65,38 @@ def test_analyze_image_returns_prediction(monkeypatch):
             "model": "resnet50",
             "model_version": "demo",
             "device": "cpu",
+            "model_registry": "local-demo",
         },
     )
 
+    expected_sha = hashlib.sha256(b"fake-image").hexdigest()
     response = client.post(
         "/analyze-image",
+        headers={"X-Image-Id": "img-123"},
         files={"file": ("scan.png", b"fake-image", "image/png")},
     )
 
     assert response.status_code == 200
     assert response.json()["model"] == "resnet50"
+    assert response.json()["image_id"] == "img-123"
+    assert response.json()["input_sha256"] == expected_sha
+    assert response.json()["service_processing_ms"] >= 0
     assert "X-Process-Time-Ms" in response.headers
+    assert response.headers["X-Image-SHA256"] == expected_sha
 
 
 def test_health_and_model_info_endpoints(monkeypatch):
     monkeypatch.setattr(
         fastapi_main,
         "get_model_metadata",
-        lambda: {"model": "resnet50", "model_version": "demo", "device": "cpu"},
+        lambda: {
+            "model": "resnet50",
+            "model_version": "demo",
+            "device": "cpu",
+            "model_registry": "local-demo",
+            "weights_sha256": "weights-sha",
+            "ready": True,
+        },
     )
 
     health_response = client.get("/health")
@@ -77,6 +106,9 @@ def test_health_and_model_info_endpoints(monkeypatch):
     assert health_response.json()["service"] == "curamind-ai-inference"
     assert model_response.status_code == 200
     assert model_response.json()["model_version"] == "demo"
+    assert model_response.json()["supported_content_types"]
+    assert model_response.json()["max_upload_mb"] == fastapi_main.MAX_UPLOAD_MB
+    assert model_response.json()["model_registry"] == "local-demo"
 
 
 def test_ready_endpoint_requires_model_and_mongo(monkeypatch):

@@ -94,6 +94,7 @@ Docker Compose now includes service healthchecks for PostgreSQL, MongoDB, Redis,
 - `scripts/install_cloudwatch_agent.sh` installs and starts the CloudWatch agent on Ubuntu EC2
 - `scripts/backup_postgres.sh` and `scripts/restore_postgres.sh` back up and restore PostgreSQL
 - `scripts/backup_mongodb.sh` and `scripts/restore_mongodb.sh` back up and restore MongoDB
+- `scripts/prune_old_backups.sh` removes backup archives older than the configured retention window
 - `scripts/post_deploy_healthcheck.sh` runs a post-deployment smoke check against the key health endpoints
 - `infrastructure/terraform/` contains the AWS IaC scaffold for EC2, IAM, CloudWatch, and security groups
 
@@ -103,9 +104,13 @@ Docker Compose now includes service healthchecks for PostgreSQL, MongoDB, Redis,
   - `AI_MAX_UPLOAD_MB`
   - `AI_MODEL_NAME`
   - `AI_MODEL_VERSION`
+  - `AI_MODEL_REGISTRY`
+  - `AI_MODEL_WEIGHTS_SHA256`
   - `AI_SERVICE_TIMEOUT_SECONDS`
   - `AI_SERVICE_RETRY_COUNT`
   - `AI_SERVICE_RETRY_BACKOFF_SECONDS`
+  - `IMAGE_PROCESSING_MAX_ATTEMPTS`
+  - `IMAGE_PROCESSING_RETRY_BACKOFF_SECONDS`
 - Celery worker knobs:
   - `CELERY_TASK_TRACK_STARTED`
   - `CELERY_TASK_ACKS_LATE`
@@ -116,6 +121,8 @@ Docker Compose now includes service healthchecks for PostgreSQL, MongoDB, Redis,
   - `CELERY_TASK_TIME_LIMIT`
 - Django upload validation knob:
   - `MAX_UPLOAD_MB`
+- Backup retention knob:
+  - `BACKUP_RETENTION_DAYS`
 
 ## Documentation
 - `docs/deployment_guide.md`

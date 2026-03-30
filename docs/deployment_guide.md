@@ -80,9 +80,13 @@ BASE_URL=https://your-domain-or-ip ./scripts/deploy_ec2.sh .env
 - `AI_MAX_UPLOAD_MB=25`
 - `AI_MODEL_NAME=resnet50`
 - `AI_MODEL_VERSION=demo-resnet50-v1`
+- `AI_MODEL_REGISTRY=local-demo`
+- `AI_MODEL_WEIGHTS_SHA256=<optional model checksum>`
 - `AI_SERVICE_TIMEOUT_SECONDS=120`
 - `AI_SERVICE_RETRY_COUNT=2`
 - `AI_SERVICE_RETRY_BACKOFF_SECONDS=1`
+- `IMAGE_PROCESSING_MAX_ATTEMPTS=3`
+- `IMAGE_PROCESSING_RETRY_BACKOFF_SECONDS=2`
 - `CELERY_TASK_TRACK_STARTED=True`
 - `CELERY_TASK_ACKS_LATE=True`
 - `CELERY_TASK_REJECT_ON_WORKER_LOST=True`
@@ -91,6 +95,7 @@ BASE_URL=https://your-domain-or-ip ./scripts/deploy_ec2.sh .env
 - `CELERY_TASK_SOFT_TIME_LIMIT=240`
 - `CELERY_TASK_TIME_LIMIT=300`
 - `CLOUDWATCH_LOG_GROUP_PREFIX=/curamind/production`
+- `BACKUP_RETENTION_DAYS=14`
 - `MFA_ISSUER=CuraMind AI`
 - `MFA_CHALLENGE_TTL=300`
 
@@ -105,7 +110,9 @@ BASE_URL=https://your-domain-or-ip ./scripts/deploy_ec2.sh .env
 - Docker Compose healthchecks gate service startup so Django, FastAPI, and Nginx wait for dependencies to become healthy.
 - `/readyz` validates Django database and cache connectivity before marking the service ready.
 - `/ai/ready` validates AI model warmup and MongoDB connectivity before marking inference ready.
+- `/ai/model-info` now includes model registry/checksum metadata and upload constraints for easier deploy verification.
 - AI result and metadata documents are upserted by `image_id` to avoid stale duplicate inference records.
 - Use `scripts/backup_postgres.sh`, `scripts/restore_postgres.sh`, `scripts/backup_mongodb.sh`, and `scripts/restore_mongodb.sh` for operational backup workflows.
+- Run `BACKUP_RETENTION_DAYS=14 ./scripts/prune_old_backups.sh` on a schedule so archives do not grow without bound.
 - `infrastructure/aws/cloudwatch-agent-config.json` is the sample CloudWatch agent config used by `scripts/install_cloudwatch_agent.sh`.
 - `infrastructure/terraform/` provisions EC2, IAM, CloudWatch log groups, and the security group foundation for the host.

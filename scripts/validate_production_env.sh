@@ -60,6 +60,11 @@ for secure_var in SECURE_SSL_REDIRECT SESSION_COOKIE_SECURE CSRF_COOKIE_SECURE; 
   fi
 done
 
+if [[ -n "${BACKUP_RETENTION_DAYS:-}" ]] && ! [[ "${BACKUP_RETENTION_DAYS}" =~ ^[0-9]+$ ]]; then
+  echo "BACKUP_RETENTION_DAYS must be an integer if provided."
+  failed=1
+fi
+
 if [[ "${failed}" -ne 0 ]]; then
   echo "Production environment validation failed."
   exit 1

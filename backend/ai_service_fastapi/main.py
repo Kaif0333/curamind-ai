@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import hashlib
 import logging
 import os
 import time
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from .model import get_model_metadata, predict_image, warmup_model
@@ -73,11 +74,15 @@ async def ready():
 
 @app.get("/model-info")
 async def model_info():
-    return get_model_metadata()
+    return {
+        **get_model_metadata(),
+        "supported_content_types": sorted(SUPPORTED_CONTENT_TYPES),
+        "max_upload_mb": MAX_UPLOAD_MB,
+    }
 
 
 @app.post("/analyze-image")
-async def analyze_image(file: UploadFile = File(...)):
+async def analyze_image(request: Request, file: UploadFile = File(...)):
     started_at = time.perf_counter()
     if file.content_type and file.content_type.lower() not in SUPPORTED_CONTENT_TYPES:
         raise HTTPException(status_code=415, detail="Unsupported file type")
@@ -94,7 +99,21 @@ async def analyze_image(file: UploadFile = File(...)):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
-    return JSONResponse(result, headers={"X-Process-Time-Ms": str(duration_ms)})
+    image_id = request.headers.get("X-Image-Id", "")
+    input_sha256 = request.headers.get("X-Image-SHA256") or hashlib.sha256(content).hexdigest()
+    payload = {
+        **result,
+        "service_processing_ms": duration_ms,
+        "input_sha256": input_sha256,
+        **({"image_id": image_id} if image_id else {}),
+    }
+    return JSONResponse(
+        payload,
+        headers={
+            "X-Process-Time-Ms": str(duration_ms),
+            "X-Image-SHA256": input_sha256,
+        },
+    )
 
 
 @app.get("/ai-result")

@@ -24,8 +24,9 @@ from apps.reports.models import Report
 
 
 class _FakeResponse:
-    def __init__(self, payload: dict):
+    def __init__(self, payload: dict, headers: dict | None = None):
         self._payload = payload
+        self.headers = headers or {}
 
     def raise_for_status(self):
         return None
@@ -73,11 +74,16 @@ def test_user_manager_and_model_strings():
 
 def test_request_inference_stores_payload(monkeypatch):
     stored = {}
+    observed = {}
 
     monkeypatch.setattr(
         "apps.ai_engine.service.requests.post",
-        lambda *args, **kwargs: _FakeResponse(
-            {"anomaly_probability": 0.31, "heatmap": "abc", "model": "resnet50"}
+        lambda *args, **kwargs: (
+            observed.update({"headers": kwargs.get("headers")})
+            or _FakeResponse(
+                {"anomaly_probability": 0.31, "heatmap": "abc", "model": "resnet50"},
+                headers={"X-Process-Time-Ms": "15.4", "X-Image-SHA256": "server-sha"},
+            )
         ),
     )
     monkeypatch.setattr(
@@ -90,6 +96,11 @@ def test_request_inference_stores_payload(monkeypatch):
     assert payload["anomaly_probability"] == 0.31
     assert stored["image_id"] == "image-123"
     assert stored["payload"]["model"] == "resnet50"
+    assert stored["payload"]["service_processing_ms"] == 15.4
+    assert stored["payload"]["input_sha256"] == "server-sha"
+    assert stored["payload"]["image_id"] == "image-123"
+    assert observed["headers"]["X-Image-Id"] == "image-123"
+    assert observed["headers"]["X-Image-SHA256"]
 
 
 def test_request_inference_rejects_transport_and_payload_failures(monkeypatch):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 from io import BytesIO
@@ -37,13 +38,19 @@ def handle_image_upload(
         raise ValueError("Patient profile not found for the uploading user.")
 
     file_bytes = upload.read()
-    metadata: dict[str, str] = {}
+    metadata: dict[str, str] = {
+        "upload_sha256": hashlib.sha256(file_bytes).hexdigest(),
+        "original_content_type": upload.content_type or "application/octet-stream",
+    }
     resolved_modality = modality
     dicom_upload = is_dicom_upload(upload.name, upload.content_type or "")
 
     if dicom_upload:
-        file_bytes, metadata = deidentify_dicom_bytes(file_bytes)
+        file_bytes, dicom_metadata = deidentify_dicom_bytes(file_bytes)
+        metadata.update(dicom_metadata)
         resolved_modality = metadata.get("Modality", modality)
+
+    metadata["stored_sha256"] = hashlib.sha256(file_bytes).hexdigest()
 
     storage = S3StorageService()
     key = storage.build_key(upload.name)
@@ -74,6 +81,7 @@ def handle_image_upload(
                 "file_name": image.file_name,
                 "modality": resolved_modality,
                 "content_type": image.content_type,
+                "upload_sha256": metadata.get("upload_sha256"),
             },
         )
     except Exception:

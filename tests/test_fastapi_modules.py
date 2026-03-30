@@ -251,6 +251,7 @@ def test_fastapi_model_predict_image_with_stubbed_ml_stack(monkeypatch):
 
     assert result["model"] == "resnet50"
     assert result["model_version"] == "demo-resnet50-v1"
+    assert result["model_registry"] == "local-demo"
     assert result["device"] == "cpu"
     assert result["heatmap"] == "heatmap-data"
     assert result["anomaly_probability"] == 0.75
