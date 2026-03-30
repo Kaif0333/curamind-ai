@@ -25,3 +25,9 @@ schema.yml
 Thumbs.db
 
 .env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log

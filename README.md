@@ -91,9 +91,11 @@ Docker Compose now includes service healthchecks for PostgreSQL, MongoDB, Redis,
 - `scripts/ec2_bootstrap.sh` installs Docker, Docker Compose, and prepares an Ubuntu EC2 host
 - `scripts/validate_production_env.sh` verifies required production env vars and secure settings
 - `scripts/deploy_ec2.sh` builds, starts, and smoke-checks the stack on an EC2 host
+- `scripts/install_cloudwatch_agent.sh` installs and starts the CloudWatch agent on Ubuntu EC2
 - `scripts/backup_postgres.sh` and `scripts/restore_postgres.sh` back up and restore PostgreSQL
 - `scripts/backup_mongodb.sh` and `scripts/restore_mongodb.sh` back up and restore MongoDB
 - `scripts/post_deploy_healthcheck.sh` runs a post-deployment smoke check against the key health endpoints
+- `infrastructure/terraform/` contains the AWS IaC scaffold for EC2, IAM, CloudWatch, and security groups
 
 ## Deployment Configuration
 - `docker compose` reads overrides from `.env`
@@ -104,6 +106,14 @@ Docker Compose now includes service healthchecks for PostgreSQL, MongoDB, Redis,
   - `AI_SERVICE_TIMEOUT_SECONDS`
   - `AI_SERVICE_RETRY_COUNT`
   - `AI_SERVICE_RETRY_BACKOFF_SECONDS`
+- Celery worker knobs:
+  - `CELERY_TASK_TRACK_STARTED`
+  - `CELERY_TASK_ACKS_LATE`
+  - `CELERY_TASK_REJECT_ON_WORKER_LOST`
+  - `CELERY_WORKER_PREFETCH_MULTIPLIER`
+  - `CELERY_WORKER_MAX_TASKS_PER_CHILD`
+  - `CELERY_TASK_SOFT_TIME_LIMIT`
+  - `CELERY_TASK_TIME_LIMIT`
 - Django upload validation knob:
   - `MAX_UPLOAD_MB`
 

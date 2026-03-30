@@ -12,24 +12,39 @@
 sudo TARGET_USER=ubuntu APP_DIR=/opt/curamind-ai ./scripts/ec2_bootstrap.sh
 ```
 
-2. Clone the repository to the EC2 instance.
-3. Copy `.env.example` to `.env` and fill in production values.
-4. Validate the production environment file:
+2. Optional: provision the EC2, IAM, and CloudWatch foundation with Terraform:
+
+```bash
+cd infrastructure/terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+3. Clone the repository to the EC2 instance.
+4. Copy `.env.example` to `.env` and fill in production values.
+5. Validate the production environment file:
 
 ```bash
 ./scripts/validate_production_env.sh .env
 ```
 
-5. Build and start services:
+6. Install the CloudWatch agent:
+
+```bash
+sudo CLOUDWATCH_LOG_GROUP_PREFIX=/curamind/production ./scripts/install_cloudwatch_agent.sh
+```
+
+7. Build and start services:
 
 ```bash
 docker compose up -d --build
 ```
 
-6. Configure Nginx certificates:
+8. Configure Nginx certificates:
 - Mount certs into `/etc/nginx/certs/` as `fullchain.pem` and `privkey.pem`.
 
-7. Verify services:
+9. Verify services:
 - Django direct: `http://<server>:8000/`
 - FastAPI direct: `http://<server>:8001/`
 - Flask utils direct: `http://<server>:8002/`
@@ -42,13 +57,13 @@ docker compose up -d --build
   - `http://<server>/ai/ready`
   - `http://<server>/ai/model-info`
 
-8. Run the post-deployment smoke check:
+10. Run the post-deployment smoke check:
 
 ```bash
 ./scripts/post_deploy_healthcheck.sh https://your-domain-or-ip
 ```
 
-9. Optional one-command deployment helper:
+11. Optional one-command deployment helper:
 
 ```bash
 BASE_URL=https://your-domain-or-ip ./scripts/deploy_ec2.sh .env
@@ -68,6 +83,14 @@ BASE_URL=https://your-domain-or-ip ./scripts/deploy_ec2.sh .env
 - `AI_SERVICE_TIMEOUT_SECONDS=120`
 - `AI_SERVICE_RETRY_COUNT=2`
 - `AI_SERVICE_RETRY_BACKOFF_SECONDS=1`
+- `CELERY_TASK_TRACK_STARTED=True`
+- `CELERY_TASK_ACKS_LATE=True`
+- `CELERY_TASK_REJECT_ON_WORKER_LOST=True`
+- `CELERY_WORKER_PREFETCH_MULTIPLIER=1`
+- `CELERY_WORKER_MAX_TASKS_PER_CHILD=100`
+- `CELERY_TASK_SOFT_TIME_LIMIT=240`
+- `CELERY_TASK_TIME_LIMIT=300`
+- `CLOUDWATCH_LOG_GROUP_PREFIX=/curamind/production`
 - `MFA_ISSUER=CuraMind AI`
 - `MFA_CHALLENGE_TTL=300`
 
@@ -84,3 +107,5 @@ BASE_URL=https://your-domain-or-ip ./scripts/deploy_ec2.sh .env
 - `/ai/ready` validates AI model warmup and MongoDB connectivity before marking inference ready.
 - AI result and metadata documents are upserted by `image_id` to avoid stale duplicate inference records.
 - Use `scripts/backup_postgres.sh`, `scripts/restore_postgres.sh`, `scripts/backup_mongodb.sh`, and `scripts/restore_mongodb.sh` for operational backup workflows.
+- `infrastructure/aws/cloudwatch-agent-config.json` is the sample CloudWatch agent config used by `scripts/install_cloudwatch_agent.sh`.
+- `infrastructure/terraform/` provisions EC2, IAM, CloudWatch log groups, and the security group foundation for the host.

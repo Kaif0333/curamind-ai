@@ -18,6 +18,7 @@ required_vars=(
   DJANGO_SECRET_KEY
   ALLOWED_HOSTS
   CSRF_TRUSTED_ORIGINS
+  CLOUDWATCH_LOG_GROUP_PREFIX
   AWS_ACCESS_KEY_ID
   AWS_SECRET_ACCESS_KEY
   AWS_REGION
@@ -44,6 +45,11 @@ fi
 
 if [[ "${DJANGO_SECRET_KEY:-}" == "curamind-local-development-secret-key-please-change" ]]; then
   echo "DJANGO_SECRET_KEY is still using the local development default."
+  failed=1
+fi
+
+if [[ "${ALLOWED_HOSTS:-}" == "*" ]]; then
+  echo "ALLOWED_HOSTS must not be '*' in production."
   failed=1
 fi
 
