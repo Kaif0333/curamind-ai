@@ -35,16 +35,22 @@ terraform apply
 sudo CLOUDWATCH_LOG_GROUP_PREFIX=/curamind/production ./scripts/install_cloudwatch_agent.sh
 ```
 
-7. Build and start services:
+7. Optional: install scheduled backup and healthcheck timers:
+
+```bash
+sudo APP_DIR=/opt/curamind-ai BASE_URL=https://your-domain-or-ip ./scripts/install_ops_timers.sh
+```
+
+8. Build and start services:
 
 ```bash
 docker compose up -d --build
 ```
 
-8. Configure Nginx certificates:
+9. Configure Nginx certificates:
 - Mount certs into `/etc/nginx/certs/` as `fullchain.pem` and `privkey.pem`.
 
-9. Verify services:
+10. Verify services:
 - Django direct: `http://<server>:8000/`
 - FastAPI direct: `http://<server>:8001/`
 - Flask utils direct: `http://<server>:8002/`
@@ -57,13 +63,13 @@ docker compose up -d --build
   - `http://<server>/ai/ready`
   - `http://<server>/ai/model-info`
 
-10. Run the post-deployment smoke check:
+11. Run the post-deployment smoke check:
 
 ```bash
 ./scripts/post_deploy_healthcheck.sh https://your-domain-or-ip
 ```
 
-11. Optional one-command deployment helper:
+12. Optional one-command deployment helper:
 
 ```bash
 BASE_URL=https://your-domain-or-ip ./scripts/deploy_ec2.sh .env
@@ -82,6 +88,7 @@ BASE_URL=https://your-domain-or-ip ./scripts/deploy_ec2.sh .env
 - `AI_MODEL_VERSION=demo-resnet50-v1`
 - `AI_MODEL_REGISTRY=local-demo`
 - `AI_MODEL_WEIGHTS_SHA256=<optional model checksum>`
+- `AI_MODEL_ANOMALY_THRESHOLD=<optional numeric override>`
 - `AI_SERVICE_TIMEOUT_SECONDS=120`
 - `AI_SERVICE_RETRY_COUNT=2`
 - `AI_SERVICE_RETRY_BACKOFF_SECONDS=1`
@@ -111,8 +118,11 @@ BASE_URL=https://your-domain-or-ip ./scripts/deploy_ec2.sh .env
 - `/readyz` validates Django database and cache connectivity before marking the service ready.
 - `/ai/ready` validates AI model warmup and MongoDB connectivity before marking inference ready.
 - `/ai/model-info` now includes model registry/checksum metadata and upload constraints for easier deploy verification.
+- Inference responses now include threshold/anomaly flags plus input hashing so model outputs are easier to trace during reviews.
+- `backend/ai_service_fastapi/model_registry.json` is the registry source for default model descriptions, modalities, and anomaly thresholds.
 - AI result and metadata documents are upserted by `image_id` to avoid stale duplicate inference records.
 - Use `scripts/backup_postgres.sh`, `scripts/restore_postgres.sh`, `scripts/backup_mongodb.sh`, and `scripts/restore_mongodb.sh` for operational backup workflows.
 - Run `BACKUP_RETENTION_DAYS=14 ./scripts/prune_old_backups.sh` on a schedule so archives do not grow without bound.
+- `scripts/install_ops_timers.sh` installs systemd timers using the templates in `infrastructure/systemd/`.
 - `infrastructure/aws/cloudwatch-agent-config.json` is the sample CloudWatch agent config used by `scripts/install_cloudwatch_agent.sh`.
 - `infrastructure/terraform/` provisions EC2, IAM, CloudWatch log groups, and the security group foundation for the host.

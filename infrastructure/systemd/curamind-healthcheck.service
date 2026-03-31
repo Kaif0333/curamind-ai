@@ -1,0 +1,10 @@
+[Unit]
+Description=CuraMind AI deployment health check
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=__APP_DIR__
+ExecStart=/bin/bash -lc 'cd "__APP_DIR__" && ./scripts/post_deploy_healthcheck.sh "__BASE_URL__"'

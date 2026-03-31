@@ -92,11 +92,14 @@ Docker Compose now includes service healthchecks for PostgreSQL, MongoDB, Redis,
 - `scripts/validate_production_env.sh` verifies required production env vars and secure settings
 - `scripts/deploy_ec2.sh` builds, starts, and smoke-checks the stack on an EC2 host
 - `scripts/install_cloudwatch_agent.sh` installs and starts the CloudWatch agent on Ubuntu EC2
+- `scripts/install_ops_timers.sh` installs systemd timers for scheduled backups and deployment health checks
 - `scripts/backup_postgres.sh` and `scripts/restore_postgres.sh` back up and restore PostgreSQL
 - `scripts/backup_mongodb.sh` and `scripts/restore_mongodb.sh` back up and restore MongoDB
 - `scripts/prune_old_backups.sh` removes backup archives older than the configured retention window
 - `scripts/post_deploy_healthcheck.sh` runs a post-deployment smoke check against the key health endpoints
 - `infrastructure/terraform/` contains the AWS IaC scaffold for EC2, IAM, CloudWatch, and security groups
+- `infrastructure/systemd/` contains timer/service templates for scheduled backup and health-check automation
+- `backend/ai_service_fastapi/model_registry.json` defines registry-backed model metadata and anomaly thresholds
 
 ## Deployment Configuration
 - `docker compose` reads overrides from `.env`
@@ -106,6 +109,7 @@ Docker Compose now includes service healthchecks for PostgreSQL, MongoDB, Redis,
   - `AI_MODEL_VERSION`
   - `AI_MODEL_REGISTRY`
   - `AI_MODEL_WEIGHTS_SHA256`
+  - `AI_MODEL_ANOMALY_THRESHOLD`
   - `AI_SERVICE_TIMEOUT_SECONDS`
   - `AI_SERVICE_RETRY_COUNT`
   - `AI_SERVICE_RETRY_BACKOFF_SECONDS`

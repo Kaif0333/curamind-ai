@@ -1,0 +1,10 @@
+[Unit]
+Description=Run CuraMind AI health checks on a schedule
+
+[Timer]
+OnCalendar=__HEALTHCHECK_SCHEDULE__
+Persistent=true
+Unit=curamind-healthcheck.service
+
+[Install]
+WantedBy=timers.target

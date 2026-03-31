@@ -81,7 +81,13 @@ def test_request_inference_stores_payload(monkeypatch):
         lambda *args, **kwargs: (
             observed.update({"headers": kwargs.get("headers")})
             or _FakeResponse(
-                {"anomaly_probability": 0.31, "heatmap": "abc", "model": "resnet50"},
+                {
+                    "anomaly_probability": 0.31,
+                    "anomaly_threshold": 0.35,
+                    "is_anomalous": False,
+                    "heatmap": "abc",
+                    "model": "resnet50",
+                },
                 headers={"X-Process-Time-Ms": "15.4", "X-Image-SHA256": "server-sha"},
             )
         ),
@@ -99,6 +105,8 @@ def test_request_inference_stores_payload(monkeypatch):
     assert stored["payload"]["service_processing_ms"] == 15.4
     assert stored["payload"]["input_sha256"] == "server-sha"
     assert stored["payload"]["image_id"] == "image-123"
+    assert stored["payload"]["anomaly_threshold"] == 0.35
+    assert stored["payload"]["is_anomalous"] is False
     assert observed["headers"]["X-Image-Id"] == "image-123"
     assert observed["headers"]["X-Image-SHA256"]
 
@@ -125,6 +133,34 @@ def test_request_inference_rejects_transport_and_payload_failures(monkeypatch):
     )
     with pytest.raises(AIServiceResponseError):
         request_inference(b"img-bytes", "image-payload")
+
+    monkeypatch.setattr(
+        "apps.ai_engine.service.requests.post",
+        lambda *args, **kwargs: _FakeResponse(
+            {
+                "anomaly_probability": 0.3,
+                "anomaly_threshold": "bad-threshold",
+                "heatmap": "abc",
+                "model": "resnet50",
+            }
+        ),
+    )
+    with pytest.raises(AIServiceResponseError):
+        request_inference(b"img-bytes", "image-threshold")
+
+    monkeypatch.setattr(
+        "apps.ai_engine.service.requests.post",
+        lambda *args, **kwargs: _FakeResponse(
+            {
+                "anomaly_probability": 0.3,
+                "is_anomalous": "yes",
+                "heatmap": "abc",
+                "model": "resnet50",
+            }
+        ),
+    )
+    with pytest.raises(AIServiceResponseError):
+        request_inference(b"img-bytes", "image-flag")
 
 
 def test_request_inference_retries_transient_service_failures(monkeypatch):
@@ -156,6 +192,24 @@ def test_request_inference_retries_transient_service_failures(monkeypatch):
 
     assert payload["anomaly_probability"] == 0.44
     assert calls["count"] == 3
+
+
+def test_request_inference_ignores_non_numeric_process_time_header(monkeypatch):
+    monkeypatch.setattr(
+        "apps.ai_engine.service.requests.post",
+        lambda *args, **kwargs: _FakeResponse(
+            {"anomaly_probability": 0.2, "heatmap": "abc", "model": "resnet50"},
+            headers={"X-Process-Time-Ms": "not-a-number"},
+        ),
+    )
+    monkeypatch.setattr(
+        "apps.ai_engine.service.store_ai_result",
+        lambda *_args, **_kwargs: None,
+    )
+
+    payload = request_inference(b"img-bytes", "image-bad-header")
+
+    assert "service_processing_ms" not in payload
 
 
 def test_send_email_notification_handles_empty_recipient_and_failures(monkeypatch):

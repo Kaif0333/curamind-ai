@@ -1,0 +1,15 @@
+{
+  "resnet50": {
+    "default_version": "demo-resnet50-v1",
+    "versions": {
+      "demo-resnet50-v1": {
+        "model_registry": "local-demo",
+        "description": "Demonstration ResNet50 classifier used for local workflow validation.",
+        "weights_sha256": "",
+        "anomaly_threshold": 0.35,
+        "supported_modalities": ["MRI", "CT", "X-Ray", "DICOM"],
+        "device": "cpu"
+      }
+    }
+  }
+}

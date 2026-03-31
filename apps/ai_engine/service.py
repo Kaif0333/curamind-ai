@@ -82,6 +82,20 @@ def _validate_inference_payload(payload: dict) -> dict:
                 "AI inference service returned an invalid service_processing_ms."
             ) from exc
 
+    if "anomaly_threshold" in payload and payload["anomaly_threshold"] is not None:
+        try:
+            payload["anomaly_threshold"] = float(payload["anomaly_threshold"])
+        except (TypeError, ValueError) as exc:
+            raise AIServiceResponseError(
+                "AI inference service returned an invalid anomaly_threshold."
+            ) from exc
+
+    if "is_anomalous" in payload and payload["is_anomalous"] is not None:
+        if not isinstance(payload["is_anomalous"], bool):
+            raise AIServiceResponseError(
+                "AI inference service returned an invalid is_anomalous flag."
+            )
+
     return payload
 
 

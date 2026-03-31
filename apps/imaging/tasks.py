@@ -161,6 +161,8 @@ def ai_inference_task(image_id: str) -> None:
                 "ai_model_registry": result.get("model_registry", ""),
                 "ai_weights_sha256": result.get("weights_sha256", ""),
                 "ai_device": result.get("device", ""),
+                "ai_anomaly_threshold": result.get("anomaly_threshold"),
+                "ai_is_anomalous": result.get("is_anomalous"),
                 "ai_service_processing_ms": result.get("service_processing_ms"),
                 "image_sha256": result.get("input_sha256", image.metadata.get("stored_sha256", "")),
                 "inference_completed_at": timezone.now().isoformat(),
@@ -178,6 +180,8 @@ def ai_inference_task(image_id: str) -> None:
                 "model": result.get("model"),
                 "model_version": result.get("model_version"),
                 "model_registry": result.get("model_registry"),
+                "anomaly_threshold": result.get("anomaly_threshold"),
+                "is_anomalous": result.get("is_anomalous"),
                 "service_processing_ms": result.get("service_processing_ms"),
             },
         )

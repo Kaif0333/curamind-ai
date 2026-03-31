@@ -237,6 +237,8 @@ def test_fastapi_model_predict_image_with_stubbed_ml_stack(monkeypatch):
     monkeypatch.setitem(sys.modules, "torchvision.transforms", fake_transforms)
     monkeypatch.setitem(sys.modules, "torchvision.models", fake_models)
 
+    registry_module_name = "backend.ai_service_fastapi.model_registry"
+    sys.modules.pop(registry_module_name, None)
     module_name = "backend.ai_service_fastapi.model"
     sys.modules.pop(module_name, None)
     model_module = importlib.import_module(module_name)
@@ -252,9 +254,131 @@ def test_fastapi_model_predict_image_with_stubbed_ml_stack(monkeypatch):
     assert result["model"] == "resnet50"
     assert result["model_version"] == "demo-resnet50-v1"
     assert result["model_registry"] == "local-demo"
+    assert result["anomaly_threshold"] == 0.35
+    assert result["is_anomalous"] is True
     assert result["device"] == "cpu"
     assert result["heatmap"] == "heatmap-data"
     assert result["anomaly_probability"] == 0.75
+
+
+def test_model_registry_resolves_known_and_unknown_models():
+    module_name = "backend.ai_service_fastapi.model_registry"
+    sys.modules.pop(module_name, None)
+    registry_module = importlib.import_module(module_name)
+
+    known = registry_module.resolve_model_metadata(
+        model_name="resnet50",
+        requested_version="demo-resnet50-v1",
+        env_registry_name="",
+        env_weights_sha256="",
+        env_anomaly_threshold=None,
+    )
+    unknown = registry_module.resolve_model_metadata(
+        model_name="custom-model",
+        requested_version="v1",
+        env_registry_name="custom-registry",
+        env_weights_sha256="abc123",
+        env_anomaly_threshold=0.61,
+    )
+
+    assert known["model_registry"] == "local-demo"
+    assert known["anomaly_threshold"] == 0.35
+    assert "MRI" in known["supported_modalities"]
+    assert unknown["model_registry"] == "custom-registry"
+    assert unknown["weights_sha256"] == "abc123"
+    assert unknown["anomaly_threshold"] == 0.61
+
+
+def test_model_registry_load_handles_missing_and_invalid_files(monkeypatch, tmp_path):
+    module_name = "backend.ai_service_fastapi.model_registry"
+    sys.modules.pop(module_name, None)
+    registry_module = importlib.import_module(module_name)
+
+    registry_module.load_model_registry.cache_clear()
+    monkeypatch.setattr(
+        registry_module,
+        "MODEL_REGISTRY_PATH",
+        tmp_path / "missing-registry.json",
+    )
+    assert registry_module.load_model_registry() == {}
+
+    invalid_path = tmp_path / "invalid-registry.json"
+    invalid_path.write_text("{bad-json", encoding="utf-8")
+    registry_module.load_model_registry.cache_clear()
+    monkeypatch.setattr(registry_module, "MODEL_REGISTRY_PATH", invalid_path)
+    assert registry_module.load_model_registry() == {}
+
+
+def test_fastapi_model_warmup_exposes_ready_metadata(monkeypatch):
+    fake_torch = types.ModuleType("torch")
+
+    class NoGradContext:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeScalar:
+        def item(self):
+            return 0.25
+
+    class FakeProbabilities:
+        def max(self):
+            return FakeScalar()
+
+    setattr(fake_torch, "no_grad", lambda: NoGradContext())
+    setattr(fake_torch, "softmax", lambda logits, dim=1: FakeProbabilities())
+
+    fake_transforms = types.ModuleType("torchvision.transforms")
+
+    class FakeTensor:
+        def unsqueeze(self, _dim):
+            return "tensor-batch"
+
+    setattr(fake_transforms, "Resize", lambda size: ("resize", size))
+    setattr(fake_transforms, "ToTensor", lambda: "to-tensor")
+    setattr(
+        fake_transforms,
+        "Normalize",
+        lambda mean, std: ("normalize", tuple(mean), tuple(std)),
+    )
+    setattr(fake_transforms, "Compose", lambda steps: (lambda image: FakeTensor()))
+
+    fake_models = types.ModuleType("torchvision.models")
+
+    class FakeModel:
+        def eval(self):
+            return self
+
+        def __call__(self, tensor):
+            return "logits"
+
+    setattr(fake_models, "resnet50", lambda weights=None: FakeModel())
+
+    fake_torchvision = types.ModuleType("torchvision")
+    setattr(fake_torchvision, "transforms", fake_transforms)
+    setattr(fake_torchvision, "models", fake_models)
+
+    monkeypatch.setenv("AI_MODEL_ANOMALY_THRESHOLD", "not-a-number")
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    monkeypatch.setitem(sys.modules, "torchvision", fake_torchvision)
+    monkeypatch.setitem(sys.modules, "torchvision.transforms", fake_transforms)
+    monkeypatch.setitem(sys.modules, "torchvision.models", fake_models)
+
+    registry_module_name = "backend.ai_service_fastapi.model_registry"
+    registry_module = importlib.import_module(registry_module_name)
+    registry_module.load_model_registry.cache_clear()
+    sys.modules.pop(registry_module_name, None)
+    module_name = "backend.ai_service_fastapi.model"
+    sys.modules.pop(module_name, None)
+    model_module = importlib.import_module(module_name)
+
+    metadata = model_module.warmup_model()
+
+    assert metadata["ready"] is True
+    assert metadata["ready_at"]
+    assert metadata["anomaly_threshold"] == 0.35
 
 
 @pytest.mark.django_db

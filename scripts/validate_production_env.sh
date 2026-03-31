@@ -65,6 +65,11 @@ if [[ -n "${BACKUP_RETENTION_DAYS:-}" ]] && ! [[ "${BACKUP_RETENTION_DAYS}" =~ ^
   failed=1
 fi
 
+if [[ -n "${AI_MODEL_ANOMALY_THRESHOLD:-}" ]] && ! [[ "${AI_MODEL_ANOMALY_THRESHOLD}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  echo "AI_MODEL_ANOMALY_THRESHOLD must be numeric if provided."
+  failed=1
+fi
+
 if [[ "${failed}" -ne 0 ]]; then
   echo "Production environment validation failed."
   exit 1

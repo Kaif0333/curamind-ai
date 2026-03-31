@@ -98,6 +98,7 @@ services:
       AI_MODEL_VERSION: ${AI_MODEL_VERSION:-demo-resnet50-v1}
       AI_MODEL_REGISTRY: ${AI_MODEL_REGISTRY:-local-demo}
       AI_MODEL_WEIGHTS_SHA256: ${AI_MODEL_WEIGHTS_SHA256:-}
+      AI_MODEL_ANOMALY_THRESHOLD: ${AI_MODEL_ANOMALY_THRESHOLD:-}
     depends_on:
       mongodb:
         condition: service_healthy

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run CuraMind AI backups on a schedule
+
+[Timer]
+OnCalendar=__BACKUP_SCHEDULE__
+Persistent=true
+Unit=curamind-backup.service
+
+[Install]
+WantedBy=timers.target

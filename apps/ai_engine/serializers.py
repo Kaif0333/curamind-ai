@@ -3,6 +3,8 @@ from rest_framework import serializers
 
 class AIResultSerializer(serializers.Serializer):
     anomaly_probability = serializers.FloatField()
+    anomaly_threshold = serializers.FloatField(required=False)
+    is_anomalous = serializers.BooleanField(required=False)
     heatmap = serializers.CharField(allow_blank=True)
     model = serializers.CharField()
     model_version = serializers.CharField(required=False, allow_blank=True)

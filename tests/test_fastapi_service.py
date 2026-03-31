@@ -13,6 +13,8 @@ setattr(
     "predict_image",
     lambda _: {
         "anomaly_probability": 0.12,
+        "anomaly_threshold": 0.35,
+        "is_anomalous": False,
         "heatmap": "abc",
         "model": "resnet50",
         "model_version": "demo",
@@ -28,6 +30,8 @@ setattr(
         "device": "cpu",
         "model_registry": "local-demo",
         "weights_sha256": "weights-sha",
+        "anomaly_threshold": 0.35,
+        "supported_modalities": ["MRI", "CT"],
         "ready": True,
     },
 )
@@ -40,6 +44,8 @@ setattr(
         "device": "cpu",
         "model_registry": "local-demo",
         "weights_sha256": "weights-sha",
+        "anomaly_threshold": 0.35,
+        "supported_modalities": ["MRI", "CT"],
         "ready": True,
     },
 )
@@ -61,6 +67,8 @@ def test_analyze_image_returns_prediction(monkeypatch):
         "predict_image",
         lambda _: {
             "anomaly_probability": 0.12,
+            "anomaly_threshold": 0.35,
+            "is_anomalous": False,
             "heatmap": "abc",
             "model": "resnet50",
             "model_version": "demo",
@@ -81,6 +89,8 @@ def test_analyze_image_returns_prediction(monkeypatch):
     assert response.json()["image_id"] == "img-123"
     assert response.json()["input_sha256"] == expected_sha
     assert response.json()["service_processing_ms"] >= 0
+    assert response.json()["anomaly_threshold"] == 0.35
+    assert response.json()["is_anomalous"] is False
     assert "X-Process-Time-Ms" in response.headers
     assert response.headers["X-Image-SHA256"] == expected_sha
 
@@ -95,6 +105,8 @@ def test_health_and_model_info_endpoints(monkeypatch):
             "device": "cpu",
             "model_registry": "local-demo",
             "weights_sha256": "weights-sha",
+            "anomaly_threshold": 0.35,
+            "supported_modalities": ["MRI", "CT"],
             "ready": True,
         },
     )
@@ -109,13 +121,20 @@ def test_health_and_model_info_endpoints(monkeypatch):
     assert model_response.json()["supported_content_types"]
     assert model_response.json()["max_upload_mb"] == fastapi_main.MAX_UPLOAD_MB
     assert model_response.json()["model_registry"] == "local-demo"
+    assert model_response.json()["anomaly_threshold"] == 0.35
+    assert model_response.json()["supported_modalities"] == ["MRI", "CT"]
 
 
 def test_ready_endpoint_requires_model_and_mongo(monkeypatch):
     monkeypatch.setattr(
         fastapi_main,
         "warmup_model",
-        lambda: {"model": "resnet50", "model_version": "demo", "device": "cpu"},
+        lambda: {
+            "model": "resnet50",
+            "model_version": "demo",
+            "device": "cpu",
+            "anomaly_threshold": 0.35,
+        },
     )
     monkeypatch.setattr(fastapi_main, "check_mongo_connection", lambda: True)
 

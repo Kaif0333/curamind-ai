@@ -135,6 +135,8 @@ def test_ai_inference_task_marks_image_processed(monkeypatch):
         "apps.imaging.tasks.request_inference",
         lambda image_bytes, image_id: {
             "anomaly_probability": 0.1,
+            "anomaly_threshold": 0.35,
+            "is_anomalous": False,
             "model": "resnet50",
             "model_version": "demo-resnet50-v1",
             "model_registry": "local-demo",
@@ -154,6 +156,8 @@ def test_ai_inference_task_marks_image_processed(monkeypatch):
     assert image.metadata["ai_model_registry"] == "local-demo"
     assert image.metadata["ai_weights_sha256"] == "weights-sha"
     assert image.metadata["ai_device"] == "cpu"
+    assert image.metadata["ai_anomaly_threshold"] == 0.35
+    assert image.metadata["ai_is_anomalous"] is False
     assert image.metadata["ai_service_processing_ms"] == 12.5
     assert image.metadata["image_sha256"] == "input-sha"
     assert image.metadata["processing_attempts"] == 1
@@ -192,6 +196,8 @@ def test_ai_inference_task_records_processing_log_events(monkeypatch):
         "apps.imaging.tasks.request_inference",
         lambda image_bytes, image_id: {
             "anomaly_probability": 0.25,
+            "anomaly_threshold": 0.35,
+            "is_anomalous": False,
             "model": "resnet50",
             "model_version": "demo-resnet50-v1",
             "model_registry": "local-demo",
@@ -216,6 +222,8 @@ def test_ai_inference_task_records_processing_log_events(monkeypatch):
     assert logged_events[0]["stage"] == "inference"
     assert logged_events[0]["details"]["attempt"] == 1
     assert logged_events[1]["details"]["anomaly_probability"] == 0.25
+    assert logged_events[1]["details"]["anomaly_threshold"] == 0.35
+    assert logged_events[1]["details"]["is_anomalous"] is False
     assert logged_events[1]["details"]["model"] == "resnet50"
     assert logged_events[1]["details"]["model_registry"] == "local-demo"
 
@@ -256,6 +264,8 @@ def test_ai_inference_task_retries_transient_failures_before_succeeding(monkeypa
             raise StorageError("temporary storage issue")
         return {
             "anomaly_probability": 0.4,
+            "anomaly_threshold": 0.35,
+            "is_anomalous": True,
             "heatmap": "abc",
             "model": "resnet50",
             "model_version": "demo-resnet50-v1",
@@ -284,6 +294,7 @@ def test_ai_inference_task_retries_transient_failures_before_succeeding(monkeypa
     assert calls["count"] == 2
     assert image.status == MedicalImage.Status.PROCESSED
     assert image.metadata["processing_attempts"] == 2
+    assert image.metadata["ai_is_anomalous"] is True
     assert "last_processing_error" not in image.metadata
     assert [event["status"] for event in logged_events] == [
         "started",
