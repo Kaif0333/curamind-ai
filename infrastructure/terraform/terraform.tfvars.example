@@ -7,7 +7,13 @@ vpc_id            = "vpc-xxxxxxxxxxxxxxxxx"
 key_name          = "curamind-production"
 allowed_ssh_cidrs = ["203.0.113.10/32"]
 private_bucket_name = "curamind-private-images"
+create_private_bucket = true
+allocate_elastic_ip   = true
 
 # Optional:
 # cloudwatch_log_group_prefix = "/curamind/production"
+# alarm_sns_topic_arns = ["arn:aws:sns:us-east-1:123456789012:curamind-alerts"]
+# cpu_alarm_threshold = 80
+# status_check_alarm_threshold = 1
+# s3_noncurrent_version_expiration_days = 30
 # user_data = file("${path.module}/user-data.sh")

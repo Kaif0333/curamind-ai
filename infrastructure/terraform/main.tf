@@ -9,6 +9,7 @@ locals {
     Environment = var.environment
     ManagedBy   = "terraform"
   }
+  manage_private_bucket = var.create_private_bucket && var.private_bucket_name != ""
 }
 
 resource "aws_security_group" "curamind" {
@@ -70,6 +71,64 @@ resource "aws_cloudwatch_log_group" "docker" {
   name              = "${var.cloudwatch_log_group_prefix}/docker"
   retention_in_days = var.cloudwatch_log_retention_days
   tags              = local.common_tags
+}
+
+resource "aws_s3_bucket" "private" {
+  count         = local.manage_private_bucket ? 1 : 0
+  bucket        = var.private_bucket_name
+  force_destroy = var.s3_force_destroy
+  tags          = merge(local.common_tags, { Name = "${local.name_prefix}-private-images" })
+}
+
+resource "aws_s3_bucket_public_access_block" "private" {
+  count                   = local.manage_private_bucket ? 1 : 0
+  bucket                  = aws_s3_bucket.private[0].id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "private" {
+  count  = local.manage_private_bucket ? 1 : 0
+  bucket = aws_s3_bucket.private[0].id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "private" {
+  count  = local.manage_private_bucket ? 1 : 0
+  bucket = aws_s3_bucket.private[0].id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "private" {
+  count  = local.manage_private_bucket ? 1 : 0
+  bucket = aws_s3_bucket.private[0].id
+
+  rule {
+    id     = "curamind-private-bucket-lifecycle"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+
+    dynamic "noncurrent_version_expiration" {
+      for_each = var.s3_noncurrent_version_expiration_days > 0 ? [1] : []
+      content {
+        noncurrent_days = var.s3_noncurrent_version_expiration_days
+      }
+    }
+  }
 }
 
 data "aws_iam_policy_document" "ec2_assume_role" {
@@ -155,4 +214,55 @@ resource "aws_instance" "curamind" {
   }
 
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-ec2" })
+}
+
+resource "aws_eip" "curamind" {
+  count    = var.allocate_elastic_ip ? 1 : 0
+  domain   = "vpc"
+  instance = aws_instance.curamind.id
+  tags     = merge(local.common_tags, { Name = "${local.name_prefix}-eip" })
+}
+
+resource "aws_cloudwatch_metric_alarm" "cpu_high" {
+  count               = var.enable_cloudwatch_alarms ? 1 : 0
+  alarm_name          = "${local.name_prefix}-cpu-high"
+  alarm_description   = "High CPU utilization on the CuraMind AI EC2 host"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = var.alarm_evaluation_periods
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 300
+  statistic           = "Average"
+  threshold           = var.cpu_alarm_threshold
+  treat_missing_data  = "missing"
+  alarm_actions       = var.alarm_sns_topic_arns
+  ok_actions          = var.alarm_sns_topic_arns
+
+  dimensions = {
+    InstanceId = aws_instance.curamind.id
+  }
+
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-cpu-high" })
+}
+
+resource "aws_cloudwatch_metric_alarm" "status_check_failed" {
+  count               = var.enable_cloudwatch_alarms ? 1 : 0
+  alarm_name          = "${local.name_prefix}-status-check-failed"
+  alarm_description   = "Instance status check failures on the CuraMind AI EC2 host"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = var.alarm_evaluation_periods
+  metric_name         = "StatusCheckFailed"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Maximum"
+  threshold           = var.status_check_alarm_threshold
+  treat_missing_data  = "missing"
+  alarm_actions       = var.alarm_sns_topic_arns
+  ok_actions          = var.alarm_sns_topic_arns
+
+  dimensions = {
+    InstanceId = aws_instance.curamind.id
+  }
+
+  tags = merge(local.common_tags, { Name = "${local.name_prefix}-status-check-failed" })
 }

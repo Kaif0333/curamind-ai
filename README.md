@@ -95,6 +95,7 @@ Docker Compose now includes service healthchecks for PostgreSQL, MongoDB, Redis,
 - `scripts/install_ops_timers.sh` installs systemd timers for scheduled backups and deployment health checks
 - `scripts/backup_postgres.sh` and `scripts/restore_postgres.sh` back up and restore PostgreSQL
 - `scripts/backup_mongodb.sh` and `scripts/restore_mongodb.sh` back up and restore MongoDB
+- `scripts/verify_backup_archives.sh` integrity-checks generated backup archives
 - `scripts/prune_old_backups.sh` removes backup archives older than the configured retention window
 - `scripts/post_deploy_healthcheck.sh` runs a post-deployment smoke check against the key health endpoints
 - `infrastructure/terraform/` contains the AWS IaC scaffold for EC2, IAM, CloudWatch, and security groups

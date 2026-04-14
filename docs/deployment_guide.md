@@ -122,7 +122,8 @@ BASE_URL=https://your-domain-or-ip ./scripts/deploy_ec2.sh .env
 - `backend/ai_service_fastapi/model_registry.json` is the registry source for default model descriptions, modalities, and anomaly thresholds.
 - AI result and metadata documents are upserted by `image_id` to avoid stale duplicate inference records.
 - Use `scripts/backup_postgres.sh`, `scripts/restore_postgres.sh`, `scripts/backup_mongodb.sh`, and `scripts/restore_mongodb.sh` for operational backup workflows.
+- Use `scripts/verify_backup_archives.sh` after backup jobs or before retention pruning to confirm the archives are readable.
 - Run `BACKUP_RETENTION_DAYS=14 ./scripts/prune_old_backups.sh` on a schedule so archives do not grow without bound.
 - `scripts/install_ops_timers.sh` installs systemd timers using the templates in `infrastructure/systemd/`.
 - `infrastructure/aws/cloudwatch-agent-config.json` is the sample CloudWatch agent config used by `scripts/install_cloudwatch_agent.sh`.
-- `infrastructure/terraform/` provisions EC2, IAM, CloudWatch log groups, and the security group foundation for the host.
+- `infrastructure/terraform/` provisions EC2, IAM, CloudWatch log groups, optional secure S3 storage, optional Elastic IPs, and CloudWatch alarms for the host.

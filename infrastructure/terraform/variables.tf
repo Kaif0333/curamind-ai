@@ -90,6 +90,60 @@ variable "private_bucket_name" {
   default     = ""
 }
 
+variable "create_private_bucket" {
+  description = "Whether Terraform should create and harden the private S3 bucket."
+  type        = bool
+  default     = false
+}
+
+variable "s3_force_destroy" {
+  description = "Whether to allow force-destroying the managed private S3 bucket."
+  type        = bool
+  default     = false
+}
+
+variable "s3_noncurrent_version_expiration_days" {
+  description = "Days to retain noncurrent object versions in the managed private bucket."
+  type        = number
+  default     = 30
+}
+
+variable "allocate_elastic_ip" {
+  description = "Whether to allocate and associate an Elastic IP to the EC2 instance."
+  type        = bool
+  default     = false
+}
+
+variable "enable_cloudwatch_alarms" {
+  description = "Whether to create EC2 CloudWatch alarms."
+  type        = bool
+  default     = true
+}
+
+variable "alarm_sns_topic_arns" {
+  description = "Optional SNS topic ARNs that receive CloudWatch alarm notifications."
+  type        = list(string)
+  default     = []
+}
+
+variable "cpu_alarm_threshold" {
+  description = "CPU utilization percentage that triggers the high CPU alarm."
+  type        = number
+  default     = 80
+}
+
+variable "status_check_alarm_threshold" {
+  description = "Status check failure threshold for the EC2 status alarm."
+  type        = number
+  default     = 1
+}
+
+variable "alarm_evaluation_periods" {
+  description = "Number of evaluation periods used by CloudWatch alarms."
+  type        = number
+  default     = 2
+}
+
 variable "user_data" {
   description = "Optional user data script for the EC2 instance."
   type        = string

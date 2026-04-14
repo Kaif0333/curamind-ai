@@ -6,4 +6,4 @@ Requires=docker.service
 [Service]
 Type=oneshot
 WorkingDirectory=__APP_DIR__
-ExecStart=/bin/bash -lc 'cd "__APP_DIR__" && ./scripts/backup_postgres.sh && ./scripts/backup_mongodb.sh && BACKUP_RETENTION_DAYS=__BACKUP_RETENTION_DAYS__ ./scripts/prune_old_backups.sh'
+ExecStart=/bin/bash -lc 'cd "__APP_DIR__" && ./scripts/backup_postgres.sh && ./scripts/backup_mongodb.sh && ./scripts/verify_backup_archives.sh && BACKUP_RETENTION_DAYS=__BACKUP_RETENTION_DAYS__ ./scripts/prune_old_backups.sh'
